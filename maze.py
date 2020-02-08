@@ -37,19 +37,58 @@ class Map:
             self.map[self.end, self.y-1] = 0
 
             # Create some walls
-            for x in range (1, self.x):
-                if random.choice([True, False]):
-                    pos = np.random.randint(1, self.y-2, 2)
-                    print(pos)
-                    for y in range(pos[0], (pos[1]+1)):
-                        self.map[x, y] = 1
+            xwalls = list(range(1, self.x))
+            ywalls = list(range(1, self.y))
 
-            for y in range (1, self.x):
-                if random.choice([True, False]):
-                    pos = np.random.randint(1, self.x-2, 2)
-                    print(pos)
-                    for x in range(pos[0], (pos[1]+1)):
-                        self.map[x, y] = 1
+            random.shuffle(xwalls)
+            random.shuffle(ywalls)
+
+            wall_count = 10
+
+            while wall_count > 0:
+                wall_count -= 1
+                x = random.choice(xwalls)
+                y = random.choice(ywalls)
+                direction = random.randint(1, 2)
+                wall_size = random.randint(1, 5)
+
+                if direction == 1:
+                    for i in range(wall_size):
+                        if x + i < self.x:
+                            self.map[x+i, y] = 1
+                        if x - i > 0:
+                            self.map[x-i, y] = 1
+                            
+                elif direction == 2:
+                    for i in range(wall_size):
+                        if y + i < self.y:
+                            self.map[x, y+i] = 1
+                        if y - i > 0:
+                            self.map[x, y-i] = 1
+
+            # create x and y walls by doing some matrix math...?
+
+            # while xwalls:
+            #     x = xwalls.pop()
+            #     while ywalls:
+            #         y = ywalls.pop()
+            #         ref = self.map[x-1:x+1, y-1:y+1]
+
+
+
+            # for x in range (1, self.x):
+            #     if random.choice([True, False]):
+            #         pos = np.random.randint(1, self.y-2, 2)
+            #         print(pos)
+            #         for y in range(pos[0], (pos[1]+1)):
+            #             self.map[x, y] = 1
+
+            # for y in range (1, self.x):
+            #     if random.choice([True, False]):
+            #         pos = np.random.randint(1, self.x-2, 2)
+            #         print(pos)
+            #         for x in range(pos[0], (pos[1]+1)):
+            #             self.map[x, y] = 1
 
 
             print("Map generation complete:\n")
