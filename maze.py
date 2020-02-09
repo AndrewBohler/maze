@@ -3,7 +3,7 @@ import random
 
 class Map:
 
-    def __init__(self, x=10, y=10):
+    def __init__(self, x=10, y=10, *args, **kwargs):
         self.x = x
         self.y = y
         self.start = None
@@ -12,29 +12,76 @@ class Map:
 
         self.gen()
         
-    def gen(self, genstyle="default"):
+    def gen(self, genstyle="default", *args, **kwargs):
+
+        print("Generating map...")
+        
+        # Create borders
+        self.map[0, :] = 1
+        self.map[-1, :] = 1
+        self.map[:, 0] = 1
+        self.map[:, -1] = 1
+
+        # Clear start and end positions
+        self.start = (random.randint(1, self.x-1), 0)
+        self.end = (random.randint(1, self.x-1), -1)
+
+        self.map[self.start] = 0
+        self.map[self.end] = 0
 
         if genstyle == "default":
-            print("Generating map...")
+            print('generation type = "default"')
 
-            # Initiate array
-            self.map = np.random.randint(0, 1, (self.x, self.y), dtype=int)
-            
-            # Create borders
-            for col in range(0, self.x):
-                self.map[col, 0] = 1
-                self.map[col, self.y-1] = 1
+            self.map[1:-1, 1:-1] = 1
 
-            for row in range(0, self.y):
-                self.map[0, row] = 1
-                self.map[self.x-1, row] = 1
+            # Keep track of covered ground using exploration matrix
+            explored = np.ones((self.x, self.y), dtype = int)
 
-            # Clear start and end positions
-            self.start = np.random.randint(1, self.x-1)
-            self.end = np.random.randint(1, self.x-1)
+            # pre-explore map border (still unexplored while > 0)
+            explored[0, :] = 0
+            explored[-1, :] = 0
+            explored[:, 0] = 0
+            explored[:, -1] = 0
 
-            self.map[self.start, 0] = 0
-            self.map[self.end, self.y-1] = 0
+            # Starting position 1 tile into maze from entrance
+            x, y = self.start[0], self.start[1]
+            if x == 0: x += 1
+            elif x == self.x: x -= 1
+            if y == 0: y += 1
+            elif y == self.y: y -= 1
+
+            while explored.any() > 0:
+                explored[x, y] = 0
+                self.map[x, y] = 0
+
+                # Right, left, up, down
+                direction = [(x+1, y), (x-1, y), (x, y+1), (x, y-1)]
+                random.shuffle(direction)
+
+                while direction:
+                    dx, dy = direction.pop()
+                    if not 0 < dx < self.x:
+                        print(f"pos {dx}, {dy} is outside of map {self.x}, {self.y}")
+                    elif not 0 < dy < self.y:
+                        print(f"pos {dx}, {dy} is outside of map {self.x}, {self.y}")
+                    elif explored[dx, dy] == 1:
+                        explored[x-1:x+1, y-1:y+1] = 0
+                        x, y = dx, dy
+                        break
+                    else:
+                        chance = random.randint(1, 100)
+                        if chance > 1: # clear explored chance
+                            explored[x-1:x+1, y-1:y+1] = 0
+                            x, y = dx, dy
+                            break
+
+        elif genstyle == "random tiles":
+            print('generation type = "random tiles"')
+            walls = np.random.randint(0, 2, (self.x-2, self.y-2), dtype=int)
+            self.map[1:-1, 1:-1] = walls
+
+        elif genstyle == "random walls":
+            print('generation type = "random walls"')
 
             # Create some walls
             xwalls = list(range(1, self.x))
@@ -66,33 +113,11 @@ class Map:
                         if y - i > 0:
                             self.map[x, y-i] = 1
 
-            # create x and y walls by doing some matrix math...?
+        else:
+            print("[Error] generation type unknown")
 
-            # while xwalls:
-            #     x = xwalls.pop()
-            #     while ywalls:
-            #         y = ywalls.pop()
-            #         ref = self.map[x-1:x+1, y-1:y+1]
-
-
-
-            # for x in range (1, self.x):
-            #     if random.choice([True, False]):
-            #         pos = np.random.randint(1, self.y-2, 2)
-            #         print(pos)
-            #         for y in range(pos[0], (pos[1]+1)):
-            #             self.map[x, y] = 1
-
-            # for y in range (1, self.x):
-            #     if random.choice([True, False]):
-            #         pos = np.random.randint(1, self.x-2, 2)
-            #         print(pos)
-            #         for x in range(pos[0], (pos[1]+1)):
-            #             self.map[x, y] = 1
-
-
-            print("Map generation complete:\n")
-            self.display()
+        print("Map generation complete:\n")
+        self.display()
 
     def display(self):
         # Print the map to the terminal
@@ -114,7 +139,7 @@ class Map:
 if __name__ == "__main__":
     print("maze.py is now running, this is a WIP\n")
     
-    map = Map(15, 15)
+    map = Map(15, 15, "random walls")
 
     print("\nThank you for using maze.py, have a nice day!\n")
     
