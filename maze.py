@@ -61,19 +61,33 @@ class Map:
                 while direction:
                     dx, dy = direction.pop()
                     if not 0 < dx < self.x:
-                        print(f"pos {dx}, {dy} is outside of map {self.x}, {self.y}")
+                        print(f"[error] pos {dx}, {dy} is outside of map {self.x}, {self.y}")
                     elif not 0 < dy < self.y:
-                        print(f"pos {dx}, {dy} is outside of map {self.x}, {self.y}")
-                    elif explored[dx, dy] == 1:
+                        print(f"[error] pos {dx}, {dy} is outside of map {self.x}, {self.y}")
+
+                    # if unexplored then move
+                    elif explored[dx, dy] > 0:
                         explored[x-1:x+1, y-1:y+1] = 0
                         x, y = dx, dy
                         break
+
+                    # chance to break (explored) walls
                     else:
                         chance = random.randint(1, 100)
-                        if chance > 1: # clear explored chance
+                        if chance > 99: # clear explored chance
                             explored[x-1:x+1, y-1:y+1] = 0
                             x, y = dx, dy
                             break
+
+                    # reposition if all directions are already explored
+                    if not direction:
+                        for i in range(1, self.x):
+                            for j in range(1, self.y):
+                                if explored[i, j] > 0:
+                                    x, y = i, j
+                                    self.map[x, y] = 0
+
+                        
 
         elif genstyle == "random tiles":
             print('generation type = "random tiles"')
