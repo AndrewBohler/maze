@@ -1,5 +1,6 @@
 import numpy as np
 import random
+import time
 
 class Map:
 
@@ -10,9 +11,13 @@ class Map:
         self.end = None
         self.map = np.zeros((x, y), dtype=int)
 
-        self.gen()
-        
-    def gen(self, genstyle="default", *args, **kwargs):
+        self._generate()
+    
+    def regenerate(self, *args, **kwargs):
+        self.map[:, :] = 0
+        self._generate(genstyle="default")
+
+    def _generate(self, genstyle="default", *args, **kwargs):
 
         print("Generating map...")
         
@@ -59,6 +64,7 @@ class Map:
                 random.shuffle(direction)
 
                 while direction:
+                    random.shuffle(direction)
                     dx, dy = direction.pop()
                     if not 0 < dx < self.x:
                         print(f"[error] pos {dx}, {dy} is outside of map {self.x}, {self.y}")
@@ -72,12 +78,12 @@ class Map:
                         break
 
                     # chance to break (explored) walls
-                    else:
-                        chance = random.randint(1, 100)
-                        if chance > 99: # clear explored chance
-                            explored[x-1:x+1, y-1:y+1] = 0
-                            x, y = dx, dy
-                            break
+                    # else:
+                    #     chance = random.randint(1, 100)
+                    #     if chance > 99: # clear explored chance
+                    #         explored[x-1:x+1, y-1:y+1] = 0
+                    #         x, y = dx, dy
+                    #         break
 
                     # reposition if all directions are already explored
                     if not direction:
@@ -86,6 +92,7 @@ class Map:
                                 if explored[i, j] > 0:
                                     x, y = i, j
                                     self.map[x, y] = 0
+                                    break
 
                         
 
@@ -154,6 +161,9 @@ if __name__ == "__main__":
     print("maze.py is now running, this is a WIP\n")
     
     map = Map(15, 15, "random walls")
+    for _ in range(10):
+        time.sleep(1)
+        map.regenerate()
 
     print("\nThank you for using maze.py, have a nice day!\n")
     
