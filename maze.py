@@ -135,13 +135,13 @@ class Maze:
         # Print the maze to the terminal
 
         # formatting
-        for y in range(self.y):
+        for x in range(self.x):
             row = []
             line = " "
-            for x in range(self.x):
-                if self.tiles[y, x] == 0:
+            for y in range(self.y):
+                if self.tiles[x, y] == 0:
                     row.append(" ")
-                elif self.tiles[y, x] == 1:
+                elif self.tiles[x, y] == 1:
                     row.append("#")
                 else:
                     row.append("E")
@@ -161,6 +161,9 @@ class PathFinder:
     def solve(self):
         if not isinstance(self._maze, Maze):
             print(f"[error] {self._maze} is not a {Maze}")
+
+            # calculate best route here
+
             return
 
         self.pos = self._maze.start
@@ -169,7 +172,7 @@ class PathFinder:
         """ Map the maze into a list of nodes"""
         self._data["nodes"] = [
             [
-                [] if self._is_node((x, y)) else None for y in range(0, self._maze.y)
+                [] if self._is_node((x, y)) else None for y in range(self._maze.y)
             ] for x in range(self._maze.x)
         ]
 
@@ -216,6 +219,12 @@ class PathFinder:
             return True
 
         x, y = coords
+
+        # If all 8 surrounding tiles are clear then ignore
+        if not self._maze.tiles[x-1:x+2, y-1:y+2].any() > 0:
+            return False
+
+        # Check if the cardinal directions are open
         left, right, up, down = False, False, False, False
         if x > 0 and self._maze.tiles[x-1, y] == 0:
             left = True
@@ -259,7 +268,7 @@ class PathFinder:
 if __name__ == "__main__":
     print("maze.py is now running, this is a WIP\n")
     
-    test = Maze(15, 15)
+    test = Maze(20, 80)
     test.display()
 
     guy = PathFinder(test)
