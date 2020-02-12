@@ -18,8 +18,8 @@ class Maze:
         self.tiles[:, :] = 0
         self._generate()
 
-    def _generate(self):
-        genstyle = self.genstyle
+    def _generate(self, *args, **kwargs):
+        self.genstyle = kwargs.get("genstyle", self.genstyle)
 
         print("Generating maze...")
         
@@ -31,12 +31,12 @@ class Maze:
 
         # Clear start and end positions
         self.start = (random.randint(1, self.x-1), 0)
-        self.end = (random.randint(1, self.x-1), -1)
+        self.end = (random.randint(1, self.x-1), self.y-1)
 
         self.tiles[self.start] = 0
         self.tiles[self.end] = 0
 
-        if genstyle == "default":
+        if self.genstyle == "default":
             print('generation type = "default"')
 
             self.tiles[1:-1, 1:-1] = 1
@@ -69,9 +69,11 @@ class Maze:
                     random.shuffle(direction)
                     dx, dy = direction.pop()
                     if not 0 < dx < self.x:
-                        print(f"[error] pos {dx}, {dy} is outside of maze {self.x}, {self.y}")
+                        # print(f"[error] pos {dx}, {dy} is outside of maze {self.x}, {self.y}")
+                        pass
                     elif not 0 < dy < self.y:
-                        print(f"[error] pos {dx}, {dy} is outside of maze {self.x}, {self.y}")
+                        # print(f"[error] pos {dx}, {dy} is outside of maze {self.x}, {self.y}")
+                        pass
 
                     # if unexplored then move
                     elif explored[dx, dy] > 0:
@@ -88,12 +90,12 @@ class Maze:
                                     self.tiles[x, y] = 0
                                     break
 
-        elif genstyle == "random tiles":
+        elif self.genstyle == "random tiles":
             print('generation type = "random tiles"')
             walls = np.random.randint(0, 2, (self.x-2, self.y-2), dtype=int)
             self.tiles[1:-1, 1:-1] = walls
 
-        elif genstyle == "random walls":
+        elif self.genstyle == "random walls":
             print('generation type = "random walls"')
 
             # Create some walls
@@ -158,15 +160,30 @@ class PathFinder:
         self._maze = maze
         self._data = {}
 
-    def solve(self):
-        if not isinstance(self._maze, Maze):
-            print(f"[error] {self._maze} is not a {Maze}")
+    def solve(self, *args, **kwargs):
+        def _setup_solve_data():
+            self._data["path"] = []
 
-            # calculate best route here
+        def _validate_maze():
+            if not isinstance(self._maze, Maze):
+                print(f"[error] {self._maze} is not a {Maze}")
+                return False
 
-            return
+        def _check_unwalked(x, y, path_number):
+            if (x, y) in self._data["path"][path_number]: return False
+            else: return True
 
-        self.pos = self._maze.start
+        # start pathing the maze
+        path_number = 0
+        x, y = self._maze.start
+        path = [(x, y)]
+
+        # do some recursive funciton calls to calculate path
+        # if end is found save path to self._data["path"][path_number]
+        # if shortest_path == True increment path_number, calculate next path
+        # and repeat until all possible paths tried
+        # output results
+
 
     def create_nodes(self):
         """ Map the maze into a list of nodes"""
@@ -268,7 +285,7 @@ class PathFinder:
 if __name__ == "__main__":
     print("maze.py is now running, this is a WIP\n")
     
-    test = Maze(20, 80)
+    test = Maze(20, 60)
     test.display()
 
     guy = PathFinder(test)
@@ -277,6 +294,14 @@ if __name__ == "__main__":
     print('\nwith nodes ".":\n')
     guy.display_nodes()
 
-    print("\nThank you for using maze.py, have a nice day!\n")
-    
-            
+    time.sleep(5)
+    test.regenerate(genstyle="random walls")
+    guy.create_nodes()
+    guy.display_nodes()
+
+    time.sleep(5)
+    test.regenerate(genstyle="random tiles")
+    guy.create_nodes()
+    guy.display_nodes()
+
+    print("\nThank you for using maze.py, have a nice day!\n")         
