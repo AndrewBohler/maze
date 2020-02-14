@@ -16,7 +16,7 @@ class Maze:
     
     def regenerate(self, *args, **kwargs):
         self.tiles[:, :] = 0
-        self._generate()
+        self._generate(*args, **kwargs)
 
     def _generate(self, *args, **kwargs):
         self.genstyle = kwargs.get("genstyle", self.genstyle)
@@ -98,21 +98,15 @@ class Maze:
         elif self.genstyle == "random walls":
             print('generation type = "random walls"')
 
-            # Create some walls
-            xwalls = list(range(1, self.x))
-            ywalls = list(range(1, self.y))
-
-            random.shuffle(xwalls)
-            random.shuffle(ywalls)
-
-            wall_count = 10
+            wall_count = kwargs.get("wall_count", (self.x+self.y)//2)
+            max_wall_size = kwargs.get("max_wall_size", (min([self.y, self.y])//4))
 
             while wall_count > 0:
                 wall_count -= 1
-                x = random.choice(xwalls)
-                y = random.choice(ywalls)
+                x = random.randint(1, self.x-1)
+                y = random.randint(1, self.y-1)
                 direction = random.randint(1, 2)
-                wall_size = random.randint(1, 5)
+                wall_size = random.randint(1, max_wall_size)
 
                 if direction == 1:
                     for i in range(wall_size):
