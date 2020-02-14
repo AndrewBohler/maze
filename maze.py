@@ -168,9 +168,46 @@ class PathFinder:
             else: return True
 
         # start pathing the maze
-        path_number = 0
         x, y = self._maze.start
-        path = [(x, y)]
+        path = []
+        if _traverse(self, x, y, path):
+            print("[success] Path found!")
+        else:
+            print("[fail] No valid path could be found.")
+
+        def _traverse(self, x, y, path) -> bool:
+            if (x, y) == self._maze.end:
+                path.append((x, y))
+                return True
+
+            connections = self._data["nodes"][x][y]
+            visited = []
+            # check if node has been visited
+            for i, c in enumerate(connections):
+                if c in path:
+                    visited.append(i)
+
+            # remove visited nodes
+            for i in reversed(visited):
+                connections.pop(i)
+
+            # return None if no options left
+            if not connections:
+                return False
+
+            # continue onto next node
+            for c in connections:
+                if _traverse(self, x, y, path):
+                    path.append((x, y))
+                    return True
+
+            # Failed to find path at this point
+            return False
+
+
+
+
+
 
         # do some recursive funciton calls to calculate path
         # if end is found save path to self._data["path"][path_number]
