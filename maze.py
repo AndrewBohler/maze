@@ -1,3 +1,4 @@
+import copy
 import numpy as np
 import random
 import time
@@ -155,6 +156,8 @@ class PathFinder:
         self._data = {}
 
     def solve(self, *args, **kwargs):
+        print('Finding path...')
+
         def _setup_solve_data():
             self._data["path"] = []
 
@@ -167,54 +170,50 @@ class PathFinder:
             if (x, y) in self._data["path"][path_number]: return False
             else: return True
 
-        # start pathing the maze
-        x, y = self._maze.start
-        path = []
-        if _traverse(self, x, y, path):
-            print("[success] Path found!")
-        else:
-            print("[fail] No valid path could be found.")
+        def _traverse(self, coords, path, previous=None) -> bool:
+            path.append(coords)
 
-        def _traverse(self, x, y, path) -> bool:
-            if (x, y) == self._maze.end:
-                path.append((x, y))
+            if coords == self._maze.end:
                 return True
 
-            connections = self._data["nodes"][x][y]
+            connections = self._data["nodes"][coords[0]][coords[1]]
             visited = []
-            # check if node has been visited
-            for i, c in enumerate(connections):
-                if c in path:
-                    visited.append(i)
+            if connections:
+                # check if node has been visited
+                for i, c in enumerate(connections):
+                    if c in path:
+                        visited.append(i)
 
-            # remove visited nodes
-            for i in reversed(visited):
-                connections.pop(i)
+                # remove visited nodes
+                for i in reversed(visited):
+                    connections.pop(i)
 
-            # return None if no options left
-            if not connections:
-                return False
+                # invalid path if no connections
+                if not connections:
+                    return False
 
-            # continue onto next node
-            for c in connections:
-                if _traverse(self, x, y, path):
-                    path.append((x, y))
-                    return True
+                # continue onto next node
+                for new_coords in connections:
+                    if _traverse(self, new_coords, path, coords):
+                        return True
+
+                    # remove failed path
+                    else: path.pop()
 
             # Failed to find path at this point
             return False
 
+        # start pathing the maze
+        _setup_solve_data()
+        x, y = self._maze.start
+        path = []
+        if _traverse(self, (x, y), path):
+            print("[success] Path found!")
+            self._data["path"].append(path)
+        else:
+            print("[fail] No valid path could be found.")
 
-
-
-
-
-        # do some recursive funciton calls to calculate path
-        # if end is found save path to self._data["path"][path_number]
-        # if shortest_path == True increment path_number, calculate next path
-        # and repeat until all possible paths tried
-        # output results
-
+        
 
     def create_nodes(self):
         """ Map the maze into a list of nodes"""
@@ -302,37 +301,69 @@ class PathFinder:
                     line.append('#')
                 elif self._maze.tiles[x, y] == 0 \
                     and self._data['nodes'][x][y] != None:
-                    line.append('.')
+                    line.append('+')
                 elif self._maze.tiles[x, y] == 0:
                     line.append(' ')
                 else:
                     line.append('e')
             print(' '.join(line))
 
-    def show_path(self):
-        pass
+    def show_path(self, n=0):
+        """Prints to terminal the map with the path :n: drawn on it"""
+
+        def _draw_path_between_points(a, b, maze):
+            # if a is None then b should be the start
+            if a is None:
+                maze[b] = 3
+
+            else:
+                dx = 0
+                if b[0] > a[0]: dx = 1
+                elif b[0] < a[0]: dx = -1
+
+                dy = 0
+                if b[1] > a[1]: dy = 1
+                elif b[1] < a[1]: dy = -1
+
+                # paint path onto maze
+                x, y = a
+                while (x, y) != b:
+                    x += dx
+                    y += dy
+                    maze[x, y] = 3
+
+        if n > len(self._data["path"])-1:
+            print(f"[error] There is no path {n} to display!")
+            return
+
+        if self._data["path"][n]:
+            maze = copy.deepcopy(self._maze.tiles)
+            point_a = None
+            for point_b in self._data["path"][n]:
+                _draw_path_between_points(point_a, point_b, maze)
+                point_a = point_b
+
+            for x in range(maze.shape[0]):
+                line = [' ']
+                for y in range(maze.shape[1]):
+                    if maze[x, y] == 0: line.append(' ')
+                    elif maze[x, y] == 1: line.append('#')
+                    elif maze[x, y] == 2: line.append('2')
+                    elif maze[x, y] == 3: line.append('.')
+
+                print(' '.join(line))
 
 
 if __name__ == "__main__":
     print("maze.py is now running, this is a WIP\n")
     
-    test = Maze(20, 60)
-    test.display()
+    test = Maze(10, 10)
+    # test.display()
 
     guy = PathFinder(test)
     guy.create_nodes()
-
-    print('\nwith nodes ".":\n')
     guy.display_nodes()
-
-    time.sleep(5)
-    test.regenerate(genstyle="random walls")
-    guy.create_nodes()
-    guy.display_nodes()
-
-    time.sleep(5)
-    test.regenerate(genstyle="random tiles")
-    guy.create_nodes()
-    guy.display_nodes()
+    guy.solve()
+    guy.show_path(0)
 
     print("\nThank you for using maze.py, have a nice day!\n")         
