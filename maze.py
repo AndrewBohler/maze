@@ -26,6 +26,8 @@ def printProgressBar (iteration, total, prefix = '', suffix = '', decimals = 1, 
     # Print New Line on Complete
     if iteration == total: 
         print()
+
+
 class Maze:
 
     def __init__(self, x=10, y=10, *args, **kwargs):
@@ -54,8 +56,8 @@ class Maze:
         self.tiles[:, -1] = 1
 
         # Clear start and end positions
-        self.start = (random.randint(1, self.x-1), 0)
-        self.end = (random.randint(1, self.x-1), self.y-1)
+        self.start = (random.randint(1, self.x-2), 0)
+        self.end = (random.randint(1, self.x-2), self.y-1)
 
         self.tiles[self.start] = 0
         self.tiles[self.end] = 0
@@ -362,6 +364,7 @@ class PathFinder:
         if not 'nodes' in self._data:
             print("[error] cannont display nodes, data missing")
             return
+
         for x in range(self._maze.x):
             line = [' ']
             for y in range(self._maze.y):
