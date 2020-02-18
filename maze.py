@@ -75,14 +75,22 @@ class Maze:
             explored[-1, :] = 0
             explored[:, 0] = 0
             explored[:, -1] = 0
-
+            
+            x, y = self.start
             # Starting position 1 tile into maze from entrance
-            x, y = self.start[0], self.start[1]
             if x == 0: x += 1
             elif x == self.x: x -= 1
             if y == 0: y += 1
             elif y == self.y: y -= 1
 
+            def _get_unexplored_coords(self, explored) -> tuple:
+                """returns coords of unexplored tile, or None"""
+                for i in range(1, self.x):
+                    for j in range(1, self.y):
+                        if explored[i, j] > 0:
+                            return (i, j)
+                return (None, None)
+            
             while explored.any() > 0:
                 explored[x, y] = 0
                 self.tiles[x, y] = 0
@@ -106,15 +114,14 @@ class Maze:
                         explored[x-1:x+1, y-1:y+1] = 0
                         x, y = dx, dy
                         break
-
+                    
                     # reposition if all directions are already explored
                     if not direction:
-                        for i in range(1, self.x):
-                            for j in range(1, self.y):
-                                if explored[i, j] > 0:
-                                    x, y = i, j
-                                    self.tiles[x, y] = 0
-                                    break
+                        x, y = _get_unexplored_coords(self, explored)
+                        if x == None or y == None:
+                            pass
+                        else:
+                            self.tiles[x, y] = 0
 
         elif self.genstyle == "random tiles":
             print('generation type = "random tiles"')
@@ -223,10 +230,9 @@ class PathFinder:
                 elif self._config["progress_style"] == 'path':
                     self.show_path(path)
                     print(
-                        f"Steps: {self._data['step_count']}  ",
-                        f"Time: {(time.time()-start_time)}",
-                        f"\nSteps/second: {int((self._data['step_count']/(time.time()-start_time)))}",
-                        "\n"
+                        f"Steps: {self._data['step_count']:,}  ",
+                        f"Time: {(time.time()-start_time):.0f} sec",
+                        f"\nSteps/second: {int((self._data['step_count']/(time.time()-start_time))):,}"
                     )
                 
                 else: pass
