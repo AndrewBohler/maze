@@ -291,7 +291,7 @@ class PathFinder:
         path = []
         print()
         if _traverse(self, self._maze.start, path):
-            print("\n[success] Path found!")
+            print("[success] Path found!")
             self._data["path"].append(path)
 
         else:
@@ -456,6 +456,7 @@ if __name__ == "__main__":
     print("maze.py is now running, this is a WIP\n")
     
     while True:
+        print('\n')
         test_maze = Maze(10, 10)
         test_maze.display()
 
@@ -465,11 +466,10 @@ if __name__ == "__main__":
         print('\n\ncreating nodes...')
         guy.create_nodes()
         guy.display_nodes()
-        print('\n\n')
         
         time.sleep(2)
 
-        print('Finding path...')
+        print('\n\nFinding path...')
         guy.solve(progress_style='path', interval_type='time', interval=1)
         guy.show_path()
         
