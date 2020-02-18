@@ -8,3 +8,6 @@ The code is likely much different from the video since (thus far) I didn't refer
 dependencies:
 
 NumPy https://numpy.org/
+
+Run maze.py for a demo
+save test_template.py as test.py and play around with it!
