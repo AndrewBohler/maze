@@ -154,7 +154,7 @@ class Maze:
         print("Maze generation complete:\n")
 
     def display(self):
-        # Print the maze to the terminal
+        """Print the maze to the terminal"""
 
         # formatting
         for x in range(self.x):
@@ -192,7 +192,8 @@ class PathFinder:
 
             self._config = {
                 "progress_style": kwargs.get("progress_style", 'bar'),
-                "interval": kwargs.get("interval", 10000)
+                "interval": kwargs.get("interval", 1),
+                "interval_type": kwargs.get("interval_type", "time")
             }
 
         def _validate_maze(self):
@@ -205,7 +206,8 @@ class PathFinder:
             else: return True
 
         def _update_progress(self):
-            if self._data["step_count"] % self._config["interval"] == 0:
+            
+            def _show_progress(self):
                 if self._config["progress_style"] == 'node_count':
                     sys.stdout.write(f'\r{self._data["node_depth"]} of {self._data["total_nodes"]} nodes')
                     sys.stdout.flush()
@@ -220,8 +222,25 @@ class PathFinder:
 
                 elif self._config["progress_style"] == 'path':
                     self.show_path(path)
+                    print(
+                        f"Steps: {self._data['step_count']}  ",
+                        f"Time: {(time.time()-start_time)}",
+                        f"\nSteps/second: {int((self._data['step_count']/(time.time()-start_time)))}",
+                        "\n"
+                    )
                 
                 else: pass
+
+            if self._config["interval_type"] == 'time':
+                if time.time() - self._data.get("progress_timer", start_time) \
+                    > self._config["interval"]:
+                    _show_progress(self)
+                    self._data["progress_timer"] = time.time()
+            
+            elif self._config["interval_type"] == 'step_count':
+                if self._data["step_count"] % self._config["interval"] == 0:
+                    _show_progress(self)
+                
 
         def _traverse(self,
         coords,
@@ -266,9 +285,6 @@ class PathFinder:
 
             # Failed to find path at this point
             return False
-
-        # if not _validate_maze(self):
-        #     return
 
         # start pathing the maze
         _setup_solve_data(**kwargs)
@@ -381,8 +397,20 @@ class PathFinder:
 
     def show_path(self, path=None):
         """Prints to terminal the map with the path :n: drawn on it"""
-        if path is None:
-            path = self._data["path"][0]
+        if type(path) is list:
+            path = path
+        
+        elif self._data["path"]:
+            if path is None:
+                path = self._data["path"][0]
+        
+            elif path is int:
+                path = self._data["path"][path]
+
+        else:
+            print(f"[error] Path invalid: {type(path)} {path}")
+            return
+
         def _draw_path_between_points(a, b, maze):
             # if a is None then b should be the start
             if a is None:
@@ -404,36 +432,49 @@ class PathFinder:
                     y += dy
                     maze[x, y] = 3
 
-        if path:
-            maze = copy.deepcopy(self._maze.tiles)
-            point_a = None
-            for point_b in path:
-                _draw_path_between_points(point_a, point_b, maze)
-                point_a = point_b
-
-            for x in range(maze.shape[0]):
-                line = [' ']
-                for y in range(maze.shape[1]):
-                    if maze[x, y] == 0: line.append(' ')
-                    elif maze[x, y] == 1: line.append('#')
-                    elif maze[x, y] == 2: line.append('2')
-                    elif maze[x, y] == 3: line.append('.')
-
-                print(' '.join(line))
+        # if path:
+        maze = copy.deepcopy(self._maze.tiles)
+        point_a = None
+        for point_b in path:
+            _draw_path_between_points(point_a, point_b, maze)
+            point_a = point_b
+        
+        output = []
+        for x in range(maze.shape[0]):
+            line = [' ']
+            for y in range(maze.shape[1]):
+                if (x, y) == path[-1]: line.append('X')
+                elif maze[x, y] == 0: line.append(' ')
+                elif maze[x, y] == 1: line.append('#')
+                elif maze[x, y] == 2: line.append('2')
+                elif maze[x, y] == 3: line.append('.')
+            output.append(' '.join(line))
+        print('\n'.join(output))
 
 
 if __name__ == "__main__":
     print("maze.py is now running, this is a WIP\n")
     
-    test = Maze(20, 20)
-    test.display()
+    while True:
+        test_maze = Maze(10, 10)
+        test_maze.display()
 
-    guy = PathFinder(test)
-    guy.create_nodes()
-    # guy.display_nodes()
-    guy.solve(progress_style='path', interval=100000)
-    
-    guy.show_path()
-    print(f'[results] Steps: {guy._data["step_count"]}',
-        f'Elapse Time: {guy._data["solve_time"]}'
-    )       
+        time.sleep(2)
+
+        guy = PathFinder(test_maze)
+        print('\n\ncreating nodes...')
+        guy.create_nodes()
+        guy.display_nodes()
+        print('\n\n')
+        
+        time.sleep(2)
+
+        print('Finding path...')
+        guy.solve(progress_style='path', interval_type='time', interval=1)
+        guy.show_path()
+        
+        print(f'[results] Steps: {guy._data["step_count"]}',
+            f'Elapse Time: {guy._data["solve_time"]}'
+        )
+
+        time.sleep(5)

@@ -1,5 +1,6 @@
 # Data
 data/*
+test.py
 
 # Visual Studio Code settings
 *.vscode
