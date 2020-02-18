@@ -1,8 +1,31 @@
 import copy
+import math
 import numpy as np
 import random
+import sys
 import time
 
+# Print iterations progress
+def printProgressBar (iteration, total, prefix = '', suffix = '', decimals = 1, length = 100, fill = '█', printEnd = "\r"):
+    """
+    Call in a loop to create terminal progress bar
+    @params:
+        iteration   - Required  : current iteration (Int)
+        total       - Required  : total iterations (Int)
+        prefix      - Optional  : prefix string (Str)
+        suffix      - Optional  : suffix string (Str)
+        decimals    - Optional  : positive number of decimals in percent complete (Int)
+        length      - Optional  : character length of bar (Int)
+        fill        - Optional  : bar fill character (Str)
+        printEnd    - Optional  : end character (e.g. "\r", "\r\n") (Str)
+    """
+    percent = ("{0:." + str(decimals) + "f}").format(100 * (iteration / float(total)))
+    filledLength = int(length * iteration // total)
+    bar = fill * filledLength + '-' * (length - filledLength)
+    print('\r%s |%s| %s%% %s' % (prefix, bar, percent, suffix), end = printEnd)
+    # Print New Line on Complete
+    if iteration == total: 
+        print()
 class Maze:
 
     def __init__(self, x=10, y=10, *args, **kwargs):
@@ -156,12 +179,21 @@ class PathFinder:
         self._data = {}
 
     def solve(self, *args, **kwargs):
-        print('Finding path...')
+        start_time = time.time()
 
-        def _setup_solve_data():
+        def _setup_solve_data(**kwargs):
             self._data["path"] = []
+            self._data["node_depth"] = 0
+            self._data["total_nodes"] = sum([len(x) for x in self._data["nodes"]])
+            self._data["node_factorial"] = math.factorial(len(self._data["nodes"]))
+            self._data["step_count"] = 0
 
-        def _validate_maze():
+            self._config = {
+                "progress_style": kwargs.get("progress_style", 'bar'),
+                "interval": kwargs.get("interval", 10000)
+            }
+
+        def _validate_maze(self):
             if not isinstance(self._maze, Maze):
                 print(f"[error] {self._maze} is not a {Maze}")
                 return False
@@ -170,9 +202,37 @@ class PathFinder:
             if (x, y) in self._data["path"][path_number]: return False
             else: return True
 
-        def _traverse(self, coords, path, previous=None) -> bool:
-            path.append(coords)
+        def _update_progress(self):
+            if self._data["step_count"] % self._config["interval"] == 0:
+                if self._config["progress_style"] == 'node_count':
+                    sys.stdout.write(f'\r{self._data["node_depth"]} of {self._data["total_nodes"]} nodes')
+                    sys.stdout.flush()
 
+                elif self._config["progress_style"] == 'bar':
+                    printProgressBar(
+                        len(path),
+                        self._data["total_nodes"],
+                        prefix='Finding path...',
+                        suffix='node depth'
+                    )
+
+                elif self._config["progress_style"] == 'path':
+                    self.show_path(path)
+                
+                else: pass
+
+        def _traverse(self,
+        coords,
+        path,
+        previous=None
+        ) -> bool:
+            """Recursively explores the maze, returns True if the end is found,
+            returns False when the end cannot be found"""
+            self._data["node_depth"] += 1
+            _update_progress(self)
+            self._data["step_count"] += 1
+
+            path.append(coords)
             if coords == self._maze.end:
                 return True
 
@@ -198,22 +258,30 @@ class PathFinder:
                         return True
 
                     # remove failed path
-                    else: path.pop()
+                    else:
+                        self._data["node_depth"] -= 1
+                        path.pop()
 
             # Failed to find path at this point
             return False
 
+        # if not _validate_maze(self):
+        #     return
+
         # start pathing the maze
-        _setup_solve_data()
-        x, y = self._maze.start
+        _setup_solve_data(**kwargs)
         path = []
-        if _traverse(self, (x, y), path):
-            print("[success] Path found!")
+        print()
+        if _traverse(self, self._maze.start, path):
+            print("\n[success] Path found!")
             self._data["path"].append(path)
+
         else:
             print("[fail] No valid path could be found.")
-
         
+        end_time = time.time()
+        self._data["solve_time"] = end_time - start_time
+
 
     def create_nodes(self):
         """ Map the maze into a list of nodes"""
@@ -308,9 +376,10 @@ class PathFinder:
                     line.append('e')
             print(' '.join(line))
 
-    def show_path(self, n=0):
+    def show_path(self, path=None):
         """Prints to terminal the map with the path :n: drawn on it"""
-
+        if path is None:
+            path = self._data["path"][0]
         def _draw_path_between_points(a, b, maze):
             # if a is None then b should be the start
             if a is None:
@@ -332,14 +401,10 @@ class PathFinder:
                     y += dy
                     maze[x, y] = 3
 
-        if n > len(self._data["path"])-1:
-            print(f"[error] There is no path {n} to display!")
-            return
-
-        if self._data["path"][n]:
+        if path:
             maze = copy.deepcopy(self._maze.tiles)
             point_a = None
-            for point_b in self._data["path"][n]:
+            for point_b in path:
                 _draw_path_between_points(point_a, point_b, maze)
                 point_a = point_b
 
@@ -357,13 +422,15 @@ class PathFinder:
 if __name__ == "__main__":
     print("maze.py is now running, this is a WIP\n")
     
-    test = Maze(10, 10)
-    # test.display()
+    test = Maze(20, 20)
+    test.display()
 
     guy = PathFinder(test)
     guy.create_nodes()
-    guy.display_nodes()
-    guy.solve()
-    guy.show_path(0)
-
-    print("\nThank you for using maze.py, have a nice day!\n")         
+    # guy.display_nodes()
+    guy.solve(progress_style='path', interval=100000)
+    
+    guy.show_path()
+    print(f'[results] Steps: {guy._data["step_count"]}',
+        f'Elapse Time: {guy._data["solve_time"]}'
+    )       
