@@ -263,7 +263,7 @@ class PathFinder:
             if coords == self._maze.end:
                 return True
 
-            connections = self._data["nodes"][coords[0]][coords[1]]
+            connections = self._data["nodes"][coords]
             visited = []
             if connections:
                 # check if node has been visited
@@ -309,16 +309,26 @@ class PathFinder:
 
     def create_nodes(self):
         """ Map the maze into a list of nodes"""
-        self._data["nodes"] = [
-            [
-                [] if self._is_node((x, y)) else None for y in range(self._maze.y)
-            ] for x in range(self._maze.x)
-        ]
 
+        self._data["nodes"] = {}
+        i = 0
+        map_size = self._maze.x * self._maze.y
         for x in range(self._maze.x):
             for y in range(self._maze.y):
-                if not self._data["nodes"][x][y] is None:
-                    self._connect_nodes((x, y))
+                i += 1
+                if self._is_node((x, y)):
+                    self._data["nodes"][(x, y)] = []
+                printProgressBar(
+                    i, map_size, 'Creating nodes...  ',
+                    f'{i}/{map_size}', length=50)
+
+        numer_of_nodes = len(self._data["nodes"])
+        for i, node in enumerate(self._data["nodes"].keys()):
+            self._connect_nodes(node)
+            printProgressBar(
+                i, numer_of_nodes-1, 'Connecting nodes...',
+                f'{i+1}/{numer_of_nodes}', length=50
+            )
 
 
     def _connect_nodes(self, node: tuple):
@@ -330,27 +340,27 @@ class PathFinder:
         while dx > 0 and self._maze.tiles[dx, y] == 0:
             dx -= 1
             if self._is_node((dx, y)):
-                self._data["nodes"][x][y].append((dx, y))
+                self._data["nodes"][(x, y)].append((dx, y))
 
         # Right
         dx = x
         while dx < self._maze.x-1 and self._maze.tiles[dx, y] == 0:
             dx += 1
             if self._is_node((dx, y)):
-                self._data["nodes"][x][y].append((dx, y))
+                self._data["nodes"][(x, y)].append((dx, y))
         # Down
         dy = y
         while dy > 0 and self._maze.tiles[x, dy] == 0:
             dy -= 1
             if self._is_node((x, dy)):
-                self._data["nodes"][x][y].append((x, dy))
+                self._data["nodes"][(x, y)].append((x, dy))
 
         # Up
         dy = y
         while dy < self._maze.y-1 and self._maze.tiles[x, dy] == 0:
             dy += 1
             if self._is_node((x, dy)):
-                self._data["nodes"][x][y].append((x, dy))
+                self._data["nodes"][(x, y)].append((x, dy))
 
     def _is_node(self, coords: tuple) -> bool:
         # The start and end of a maze are nodes automatically
@@ -393,7 +403,7 @@ class PathFinder:
                 if self._maze.tiles[x, y] == 1:
                     line.append('#')
                 elif self._maze.tiles[x, y] == 0 \
-                    and self._data['nodes'][x][y] != None:
+                    and self._data['nodes'][(x, y)]:
                     line.append('+')
                 elif self._maze.tiles[x, y] == 0:
                     line.append(' ')
