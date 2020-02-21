@@ -402,8 +402,7 @@ class PathFinder:
             for y in range(self._maze.y):
                 if self._maze.tiles[x, y] == 1:
                     line.append('#')
-                elif self._maze.tiles[x, y] == 0 \
-                    and self._data['nodes'][(x, y)]:
+                elif (x, y) in self._data['nodes'].keys():
                     line.append('+')
                 elif self._maze.tiles[x, y] == 0:
                     line.append(' ')
