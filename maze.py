@@ -230,7 +230,7 @@ class PathFinder:
                 elif self._config["progress_style"] == 'path':
                     self.show_path(path)
                     print(
-                        f"Steps: {self._data['step_count']:,}  ",
+                        f"Steps: {self._data['step_count']:,} ",
                         f"Time: {(time.time()-start_time):.0f} sec",
                         f"\nSteps/second: {int((self._data['step_count']/(time.time()-start_time))):,}"
                     )
@@ -339,28 +339,37 @@ class PathFinder:
         dx = x
         while dx > 0 and self._maze.tiles[dx, y] == 0:
             dx -= 1
-            if self._is_node((dx, y)):
+            # if self._is_node((dx, y)):
+            if (dx, y) in self._data["nodes"]:
                 self._data["nodes"][(x, y)].append((dx, y))
+                break
 
         # Right
         dx = x
         while dx < self._maze.x-1 and self._maze.tiles[dx, y] == 0:
             dx += 1
-            if self._is_node((dx, y)):
+            # if self._is_node((dx, y)):
+            if (dx, y) in self._data["nodes"]:
                 self._data["nodes"][(x, y)].append((dx, y))
+                break
+
         # Down
         dy = y
         while dy > 0 and self._maze.tiles[x, dy] == 0:
             dy -= 1
-            if self._is_node((x, dy)):
+            # if self._is_node((x, dy)):
+            if (x, dy) in self._data["nodes"]:
                 self._data["nodes"][(x, y)].append((x, dy))
+                break
 
         # Up
         dy = y
         while dy < self._maze.y-1 and self._maze.tiles[x, dy] == 0:
             dy += 1
-            if self._is_node((x, dy)):
+            # if self._is_node((x, dy)):
+            if (x, dy) in self._data["nodes"]:
                 self._data["nodes"][(x, y)].append((x, dy))
+                break
 
     def _is_node(self, coords: tuple) -> bool:
         # The start and end of a maze are nodes automatically
