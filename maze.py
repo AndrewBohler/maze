@@ -38,7 +38,7 @@ class Maze:
         self.end = None
         self.tiles = np.zeros((x, y), dtype=int)
 
-        self._generate()
+        self._generate(**kwargs)
     
     def regenerate(self, *args, **kwargs):
         self.tiles[:, :] = 0
@@ -157,6 +157,59 @@ class Maze:
 
         else:
             print("[Error] generation type unknown")
+
+        if kwargs.get('fill', False):
+            """Narrow pathways by filling in elligible open space"""
+            
+            print('Filling in open space!!!!')
+
+            def get_slice(p:tuple) -> np.array:
+                return self.tiles[p[0]-1:p[0]+2, p[1]-1:p[1]+2]
+
+            def no_direction(a: np.array) -> bool:
+                if a[1, 0] == 0 and a[1, 2] == 0 and \
+                    a[0, 1] == 0 and a[2, 1] == 0:
+                    return True
+                else: return False
+
+            def double_wide(a: np.array) -> bool:
+                up = np.array([[1, 1, 1], [0, 0 , 0], [0, 0, 0]])
+                down = np.array([[0, 0, 0], [0, 0, 0], [1, 1, 1]])
+                left = np.array([[1, 0, 0], [1, 0, 0], [1, 0, 0]])
+                right = np.array([[0, 0, 1], [0, 0, 1], [0, 0, 1]])
+                for d in [up, down, left, right]:
+                    if np.array_equal(a, d): return True
+                return False
+
+            total_iterations = (self.x-2)*(self.y-2)*2
+            i = 0
+
+            # check "double wide"
+            for x in range(1, self.x-1):
+                for y in range(1, self.y-1):
+                    i += 1
+                    if self.tiles[x, y] == 0:
+                        a = get_slice((x, y))
+                        if double_wide(a):
+                            self.tiles[x, y] = 1
+
+                    printProgressBar(
+                        i, total_iterations, length=50,
+                        suffix=(f'{i}/{total_iterations}'))
+
+            # check "no direction"
+            for x in range(1, self.x-1):
+                for y in range(1, self.y-1):
+                    i += 1
+                    if self.tiles[x, y] == 0:
+                        a = get_slice((x, y))
+                        if no_direction(a):
+                            self.tiles[x, y] = 1
+
+                    printProgressBar(
+                        i, total_iterations, length=50,
+                        suffix=(f'{i}/{total_iterations}'))
+
 
         print("Maze generation complete:\n")
 
