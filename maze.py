@@ -256,12 +256,12 @@ class PathFinder:
                 "interval_type": kwargs.get("interval_type", "time")
             }
 
-        def _validate_maze(self):
+        def _validate_maze(self) -> bool:
             if not isinstance(self._maze, Maze):
                 print(f"[error] {self._maze} is not a {Maze}")
                 return False
 
-        def _check_unwalked(x, y, path_number):
+        def _check_unwalked(x, y, path_number) -> bool:
             if (x, y) in self._data["path"][path_number]: return False
             else: return True
 
