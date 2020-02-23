@@ -33,6 +33,8 @@ class Maze:
     def __init__(self, x=10, y=10, *args, **kwargs):
         self.x = x
         self.y = y
+        self.shape = (x, y)
+        self.num_tiles = x * y
         self.genstyle = kwargs.get("genstyle", "default")
         self.start = None
         self.end = None
@@ -83,17 +85,18 @@ class Maze:
             if y == 0: y += 1
             elif y == self.y: y -= 1
 
-            def _get_unexplored_coords(self, explored) -> tuple:
+            def _get_unexplored_coords(self) -> tuple:
                 """returns coords of unexplored tile, or None"""
                 for i in range(1, self.x):
                     for j in range(1, self.y):
                         if explored[i, j] > 0:
-                            return (i, j)
-                return (None, None)
-            
+                            yield (i, j)
+                yield (None, None)
+
             while explored.any() > 0:
                 explored[x, y] = 0
                 self.tiles[x, y] = 0
+                find_unexplored = _get_unexplored_coords(self)
 
                 # Right, left, up, down
                 direction = [(x+1, y), (x-1, y), (x, y+1), (x, y-1)]
@@ -117,11 +120,17 @@ class Maze:
                     
                     # reposition if all directions are already explored
                     if not direction:
-                        x, y = _get_unexplored_coords(self, explored)
+                        x, y = next(find_unexplored)
                         if x == None or y == None:
                             pass
                         else:
                             self.tiles[x, y] = 0
+            
+                explored_count = self.num_tiles - np.sum(explored)
+                printProgressBar(
+                    explored_count, self.num_tiles, f'Generating...',
+                    f'{explored_count}/{self.num_tiles}', length=50,
+                )
 
         elif self.genstyle == "random tiles":
             print('generation type = "random tiles"')
