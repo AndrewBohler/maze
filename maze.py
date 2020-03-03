@@ -305,17 +305,14 @@ class PathFinder:
                 def _pygame():
                     pass
 
-                look_up_style = {
+                style = {
                     'node_count': _node_count,
                     'bar': _bar,
                     'path': _path,
                     'pygame': _pygame
-                }
+                }.get(self._config['progress_style'])
 
-                try:
-                    look_up_style[self._config['progress_style']]()
-                except KeyError:
-                    pass
+                style()
 
             if self._config["interval_type"] == 'time':
                 if time.time() - self._data.get("progress_timer", start_time) \
