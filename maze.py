@@ -1,9 +1,12 @@
 import copy
 import math
+from multiprocessing import Process
+from multiprocessing.managers import SharedMemoryManager
 import numpy as np
 import random
 import sys
 import time
+
 
 # Print iterations progress
 def printProgressBar (iteration, total, prefix = '', suffix = '', decimals = 1, length = 100, fill = '█', printEnd = "\r"):
@@ -241,6 +244,7 @@ class Maze:
 class PathFinder:
     def __init__(self, maze=None):
         self._maze = maze
+        self.display = None
         self.pos = [0, 0]
         self._data = {}
 
@@ -277,11 +281,12 @@ class PathFinder:
         def _update_progress(self):
             
             def _show_progress(self):
-                if self._config["progress_style"] == 'node_count':
+
+                def _node_count():
                     sys.stdout.write(f'\r{self._data["node_depth"]} of {self._data["total_nodes"]} nodes')
                     sys.stdout.flush()
 
-                elif self._config["progress_style"] == 'bar':
+                def _bar():
                     printProgressBar(
                         len(path),
                         self._data["total_nodes"],
@@ -289,7 +294,7 @@ class PathFinder:
                         suffix='node depth'
                     )
 
-                elif self._config["progress_style"] == 'path':
+                def _path():
                     self.show_path(path)
                     print(
                         f"Steps: {self._data['step_count']:,} ",
@@ -297,7 +302,20 @@ class PathFinder:
                         f"\nSteps/second: {int((self._data['step_count']/(time.time()-start_time))):,}"
                     )
                 
-                else: pass
+                def _pygame():
+                    pass
+
+                look_up_style = {
+                    'node_count': _node_count,
+                    'bar': _bar,
+                    'path': _path,
+                    'pygame': _pygame
+                }
+
+                try:
+                    look_up_style[self._config['progress_style']]()
+                except KeyError:
+                    pass
 
             if self._config["interval_type"] == 'time':
                 if time.time() - self._data.get("progress_timer", start_time) \
