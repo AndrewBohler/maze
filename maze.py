@@ -324,7 +324,7 @@ class PathFinder:
                     print(
                         f"Steps: {self._data['step_count']:,} ",
                         f"Time: {(time.time()-start_time):.0f} sec",
-                        f"\nSteps/second: {int((self._data['step_count']//(current_time-start_time))):,}"
+                        f"\nSteps/second: {int(self._data['step_count']/(current_time-start_time)):,}"
                     )
                 
                 def _pygame():
@@ -336,8 +336,6 @@ class PathFinder:
                     'path': _path,
                     'pygame': _pygame
                 }.get(self._config['progress_style'])()
-
-                # style()
 
             if self._config["interval_type"] == 'time':
                 if time.time() - self._data.get("progress_timer", start_time) \
@@ -352,8 +350,7 @@ class PathFinder:
 
         def _traverse(self,
         coords: tuple,
-        path: set,
-        previous: tuple = None
+        path: set
         ) -> bool:
             """Recursively explores the maze, returns True if the end is found,
             returns False when the end cannot be found"""
@@ -373,7 +370,7 @@ class PathFinder:
                 self._data['node_depth'] += 1
                 self._data['path'][self._data['node_depth']] = new_coords
 
-                if _traverse(self, new_coords, path, coords):
+                if _traverse(self, new_coords, path):
                     return True
 
                 else:
@@ -388,7 +385,6 @@ class PathFinder:
         # start pathing the maze
         _setup_solve_data(**kwargs)
         path = set()
-        print()
 
         self._data['path'][0] = self._maze.start # first point in path
         if _traverse(self, self._maze.start, path):
@@ -518,6 +514,16 @@ class PathFinder:
         if not path is list:
             path = [tuple(p) for p in self._data['path'][:] if tuple(p) != (0, 0)]            
 
+        # tile type to character lookup dict
+        characters = {
+                0: ' ',
+                1: '#',
+                2: '2',
+                3: '.'
+            }
+
+        output = []
+
         def _draw_path_between_points(a, b, maze):
             # if a is None then b should be the start
             if a is None:
@@ -539,23 +545,18 @@ class PathFinder:
                     y += dy
                     maze[x, y] = 3
 
-        output = []
-
         if path:
             maze = copy.deepcopy(self._maze.tiles)
             point_a = None
             for point_b in path:
                 _draw_path_between_points(point_a, point_b, maze)
                 point_a = point_b
-            
+
             for x in range(maze.shape[0]):
                 line = [' ']
                 for y in range(maze.shape[1]):
                     if (x, y) == path[-1]: line.append('X')
-                    elif maze[x, y] == 0: line.append(' ')
-                    elif maze[x, y] == 1: line.append('#')
-                    elif maze[x, y] == 2: line.append('2')
-                    elif maze[x, y] == 3: line.append('.')
+                    else: line.append(characters[maze[x, y]])
                 output.append(' '.join(line))
 
         if output:
