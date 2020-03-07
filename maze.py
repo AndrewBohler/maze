@@ -242,9 +242,13 @@ class Maze:
             print("  " + line.join(row))
 
 class PathFinder:
-    def __init__(self, maze=None):
+    def __init__(self,
+    maze: Maze = None,
+    memory_manager: SharedMemoryManager = None
+    ):
         self._maze = maze
         self.display = None
+        self.memory_manager = memory_manager
         self.pos = [0, 0]
         self._data = {}
 
@@ -257,11 +261,31 @@ class PathFinder:
         start_time = time.time()
 
         def _setup_solve_data(**kwargs):
-            self._data["path"] = []
+            
             self._data["node_depth"] = 0
             self._data["total_nodes"] = sum([len(x) for x in self._data["nodes"]])
             self._data["node_factorial"] = math.factorial(len(self._data["nodes"]))
             self._data["step_count"] = 0
+
+            self._data["path"] = np.array(
+                [(0, 0) for _ in range(self._data['total_nodes'])],
+                dtype=int
+            )
+
+            # if multiprocessing then use shared memory as a buffer
+            if self.memory_manager:
+                self.shared_path = self.memory_manager.SharedMemory(
+                    self._data['path'].nbytes
+                )
+
+                self._data["path"] = np.ndarray(
+                    self._data["path"].shape,
+                    dtype=int,
+                    buffer=self.shared_path.buf
+                )
+
+            else:
+                self.shared_path = None
 
             self._config = {
                 "progress_style": kwargs.get("progress_style", 'bar'),
@@ -295,11 +319,12 @@ class PathFinder:
                     )
 
                 def _path():
+                    current_time = time.time()
                     self.show_path(path)
                     print(
                         f"Steps: {self._data['step_count']:,} ",
                         f"Time: {(time.time()-start_time):.0f} sec",
-                        f"\nSteps/second: {int((self._data['step_count']/(time.time()-start_time))):,}"
+                        f"\nSteps/second: {int((self._data['step_count']//(current_time-start_time))):,}"
                     )
                 
                 def _pygame():
@@ -310,9 +335,9 @@ class PathFinder:
                     'bar': _bar,
                     'path': _path,
                     'pygame': _pygame
-                }.get(self._config['progress_style'])
+                }.get(self._config['progress_style'])()
 
-                style()
+                # style()
 
             if self._config["interval_type"] == 'time':
                 if time.time() - self._data.get("progress_timer", start_time) \
@@ -326,56 +351,48 @@ class PathFinder:
                 
 
         def _traverse(self,
-        coords,
-        path,
-        previous=None
+        coords: tuple,
+        path: set,
+        previous: tuple = None
         ) -> bool:
             """Recursively explores the maze, returns True if the end is found,
             returns False when the end cannot be found"""
-            self._data["node_depth"] += 1
+            # self._data["node_depth"] += 1
             _update_progress(self)
             self._data["step_count"] += 1
 
-            path.append(coords)
+            path.add(coords)
             if coords == self._maze.end:
                 return True
 
-            connections = self._data["nodes"][coords]
-            visited = []
-            if connections:
-                # check if node has been visited
-                for i, c in enumerate(connections):
-                    if c in path:
-                        visited.append(i)
+            connections = [c for c in self._data["nodes"][coords] if not c in path]
 
-                # remove visited nodes
-                for i in reversed(visited):
-                    connections.pop(i)
+            # recursively traverse each connection
+            for new_coords in connections:
+                # set next point in path
+                self._data['node_depth'] += 1
+                self._data['path'][self._data['node_depth']] = new_coords
 
-                # invalid path if no connections
-                if not connections:
-                    return False
+                if _traverse(self, new_coords, path, coords):
+                    return True
 
-                # continue onto next node
-                for new_coords in connections:
-                    if _traverse(self, new_coords, path, coords):
-                        return True
-
-                    # remove failed path
-                    else:
-                        self._data["node_depth"] -= 1
-                        path.pop()
+                else:
+                    # remove point from path
+                    self._data['path'][self._data['node_depth']] = (0, 0)
+                    self._data["node_depth"] -= 1
+                    path.remove(new_coords)
 
             # Failed to find path at this point
             return False
 
         # start pathing the maze
         _setup_solve_data(**kwargs)
-        path = []
+        path = set()
         print()
+
+        self._data['path'][0] = self._maze.start # first point in path
         if _traverse(self, self._maze.start, path):
             print("[success] Path found!")
-            self._data["path"].append(path)
 
         else:
             print("[fail] No valid path could be found.")
@@ -496,21 +513,10 @@ class PathFinder:
                     line.append('e')
             print(' '.join(line))
 
-    def show_path(self, path=None):
+    def show_path(self, path: tuple = None):
         """Prints to terminal the map with the path :n: drawn on it"""
-        if type(path) is list:
-            path = path
-        
-        elif self._data["path"]:
-            if path is None:
-                path = self._data["path"][0]
-        
-            elif path is int:
-                path = self._data["path"][path]
-
-        else:
-            print(f"[error] Path invalid: {type(path)} {path}")
-            return
+        if not path is list:
+            path = [tuple(p) for p in self._data['path'][:] if tuple(p) != (0, 0)]            
 
         def _draw_path_between_points(a, b, maze):
             # if a is None then b should be the start
@@ -533,24 +539,30 @@ class PathFinder:
                     y += dy
                     maze[x, y] = 3
 
-        # if path:
-        maze = copy.deepcopy(self._maze.tiles)
-        point_a = None
-        for point_b in path:
-            _draw_path_between_points(point_a, point_b, maze)
-            point_a = point_b
-        
         output = []
-        for x in range(maze.shape[0]):
-            line = [' ']
-            for y in range(maze.shape[1]):
-                if (x, y) == path[-1]: line.append('X')
-                elif maze[x, y] == 0: line.append(' ')
-                elif maze[x, y] == 1: line.append('#')
-                elif maze[x, y] == 2: line.append('2')
-                elif maze[x, y] == 3: line.append('.')
-            output.append(' '.join(line))
-        print('\n'.join(output))
+
+        if path:
+            maze = copy.deepcopy(self._maze.tiles)
+            point_a = None
+            for point_b in path:
+                _draw_path_between_points(point_a, point_b, maze)
+                point_a = point_b
+            
+            for x in range(maze.shape[0]):
+                line = [' ']
+                for y in range(maze.shape[1]):
+                    if (x, y) == path[-1]: line.append('X')
+                    elif maze[x, y] == 0: line.append(' ')
+                    elif maze[x, y] == 1: line.append('#')
+                    elif maze[x, y] == 2: line.append('2')
+                    elif maze[x, y] == 3: line.append('.')
+                output.append(' '.join(line))
+
+        if output:
+            print('\n'.join(output))
+
+        else:
+            print('[error] No path to display')
 
 
 if __name__ == "__main__":
