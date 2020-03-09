@@ -252,6 +252,10 @@ class PathFinder:
         self.pos = [0, 0]
         self._data = {}
 
+        if self.memory_manager is None:
+            self.memory_manager = SharedMemoryManager()
+            self.memory_manager.start()
+
     def assign_maze(self, maze: Maze):
         """Assign a new maze AND clear data"""
         self._maze = maze
@@ -267,25 +271,28 @@ class PathFinder:
             self._data["node_factorial"] = math.factorial(len(self._data["nodes"]))
             self._data["step_count"] = 0
 
-            self._data["path"] = np.array(
-                [(0, 0) for _ in range(self._data['total_nodes'])],
-                dtype=int
+            temp = np.empty((self._data['total_nodes'], 2), dtype=int)
+            self._data["path_mem"] = self.memory_manager.SharedMemory(temp.nbytes)
+            self._data["path"] = np.ndarray(
+                temp.shape, dtype=int, buffer=self._data["path_mem"].buf)
+            self._data["path"].fill(0)
+            
+            self._data["maze_mem"] = self.memory_manager.SharedMemory(
+                self._maze.tiles.nbytes)
+
+            self._data['maze'] = np.ndarray(
+                self._maze.tiles.shape,
+                dtype=self._maze.tiles.dtype,
+                buffer=self._data['maze_mem'].buf
             )
-
-            # if multiprocessing then use shared memory as a buffer
-            if self.memory_manager:
-                self.shared_path = self.memory_manager.SharedMemory(
-                    self._data['path'].nbytes
-                )
-
-                self._data["path"] = np.ndarray(
-                    self._data["path"].shape,
-                    dtype=int,
-                    buffer=self.shared_path.buf
-                )
-
-            else:
-                self.shared_path = None
+            self._data['maze'][:] = self._maze.tiles[:]
+            self._data['display_running_mem'] = self.memory_manager.SharedMemory(4)
+            self._data['display_running'] = np.ndarray(
+                (1,),
+                dtype=int,
+                buffer=self._data['display_running_mem'].buf
+            )
+            self._data['display_running'][0] = True
 
             self._config = {
                 "progress_style": kwargs.get("progress_style", 'bar'),
@@ -328,9 +335,26 @@ class PathFinder:
                     )
                 
                 def _pygame():
-                    pass
-
-                style = {
+                    if not self.display:
+                        self.display = Process(
+                            target=pygame_display,
+                            args=[
+                                self._data['maze'].dtype,
+                                self._data['maze_mem'],
+                                self._data['maze'].shape,
+                                self._data['path'].dtype,
+                                self._data['path_mem'],
+                                self._data['path'].shape,
+                                self._data['display_running_mem']
+                            ],
+                            daemon=True
+                        )
+                        self.display.start()
+                    else:
+                        _bar()
+                
+                # call function based on progress style
+                {
                     'node_count': _node_count,
                     'bar': _bar,
                     'path': _path,
@@ -566,11 +590,89 @@ class PathFinder:
             print('[error] No path to display')
 
 
+def pygame_display(
+    maze_dtype: np.dtype,
+    maze_mem: SharedMemoryManager.SharedMemory,
+    maze_shape: tuple,
+    path_dtype: np.dtype,
+    path_mem: SharedMemoryManager.SharedMemory,
+    path_shape: tuple,
+    keep_running_mem: SharedMemoryManager.SharedMemory,
+    fps: int=15,
+    window_size: tuple=(500, 500)):
+
+    import pygame
+
+    maze_raw = np.ndarray(maze_shape, dtype=maze_dtype, buffer=maze_mem.buf)
+    path_raw = np.ndarray(path_shape, dtype=path_dtype, buffer=path_mem.buf)
+    keep_running = np.ndarray((1,), dtype=int, buffer=keep_running_mem.buf)
+
+    maze = np.array(maze_raw)
+    path = np.array(path_raw)
+
+    color = {
+        0: (50, 50, 50), # floor
+        1: (0, 200, 200), # wall
+        2: (255, 255, 0), # error?
+        3: (50, 50, 255) # path?
+    }
+
+    clock = pygame.time.Clock()
+    screen = pygame.display.set_mode(window_size)
+    tile_size = int(min(window_size) // max(maze.shape))
+
+    def _update_maze():
+        maze[:] = maze_raw[:]
+
+    def _update_path():
+        path[:] = path_raw[:]
+
+    def _draw_tiles():
+        for x in range(maze.shape[0]):
+            for y in range(maze.shape[1]):
+                pygame.draw.rect(
+                    screen,
+                    color[maze[x, y]],
+                    [x*tile_size, y*tile_size, tile_size, tile_size]
+                )
+    
+    def _draw_path():
+        color = (100, 255, 100)
+        pad = int(tile_size // 2)
+        points = [(x*tile_size+pad, y*tile_size+pad) for x, y in path if not (x, y) == (0, 0)]
+        pygame.draw.lines(screen, color, False, points)
+
+    def _draw_fps():
+        pass
+
+    def _handle_events():
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                keep_running[0] = False
+
+    pygame.init()
+    screen.fill((0, 0, 0))
+
+    while keep_running[0] == True:
+        _handle_events()
+        _update_maze()
+        _update_path()
+        _draw_tiles()
+        _draw_path()
+        _draw_fps()
+
+        clock.tick(fps)
+        pygame.display.flip()
+
+    pygame.quit()            
+
+
 if __name__ == "__main__":
     print("maze.py is now running, this is a WIP\n")
     
     while True:
         print('\n')
+
         test_maze = Maze(10, 10)
         test_maze.display()
 
