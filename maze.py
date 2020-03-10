@@ -46,7 +46,7 @@ class Maze:
         self._generate(**kwargs)
     
     def regenerate(self, *args, **kwargs):
-        self.tiles[:, :] = 0
+        self.tiles.fill(0)
         self._generate(*args, **kwargs)
 
     def _generate(self, *args, **kwargs):
@@ -259,10 +259,11 @@ class PathFinder:
     def assign_maze(self, maze: Maze):
         """Assign a new maze AND clear data"""
         self._maze = maze
-        self._data = {}
+        # self._data = {}
 
     def solve(self, *args, **kwargs):
         start_time = time.time()
+        time.sleep(0.000001) # prevent division by zero error
 
         def _setup_solve_data(**kwargs):
             
@@ -271,31 +272,32 @@ class PathFinder:
             self._data["node_factorial"] = math.factorial(len(self._data["nodes"]))
             self._data["step_count"] = 0
 
-            temp = np.empty((self._data['total_nodes'], 2), dtype=int)
-            self._data["path_mem"] = self.memory_manager.SharedMemory(temp.nbytes)
-            self._data["path"] = np.ndarray(
-                temp.shape, dtype=int, buffer=self._data["path_mem"].buf)
-            self._data["path"].fill(0)
-            
-            self._data["maze_mem"] = self.memory_manager.SharedMemory(
-                self._maze.tiles.nbytes)
+            if not self._data.get('path_mem', False):
+                temp = np.empty((self._data['total_nodes'], 2), dtype=int)
+                self._data["path_mem"] = self.memory_manager.SharedMemory(temp.nbytes)
+                self._data["path"] = np.ndarray(
+                    temp.shape, dtype=int, buffer=self._data["path_mem"].buf)
+                self._data["path"].fill(0)
+                
+                self._data["maze_mem"] = self.memory_manager.SharedMemory(
+                    self._maze.tiles.nbytes)
 
-            self._data['maze'] = np.ndarray(
-                self._maze.tiles.shape,
-                dtype=self._maze.tiles.dtype,
-                buffer=self._data['maze_mem'].buf
-            )
-            self._data['maze'][:] = self._maze.tiles[:]
+                self._data['maze'] = np.ndarray(
+                    self._maze.tiles.shape,
+                    dtype=self._maze.tiles.dtype,
+                    buffer=self._data['maze_mem'].buf
+                )
+                self._data['maze'][:] = self._maze.tiles[:]
 
-            # state = running, step_count, step_per_sec
-            self._data['display_state_mem'] = self.memory_manager.SharedMemory((3*64))
-            self._data['display_state'] = np.ndarray(
-                (3,),
-                dtype='uint64',
-                buffer=self._data['display_state_mem'].buf
-            )
-            self._data['display_state'][0] = True
-            self._data['display_state'][1:] = 0
+                # state = running, step_count, step_per_sec
+                self._data['display_state_mem'] = self.memory_manager.SharedMemory((3*64))
+                self._data['display_state'] = np.ndarray(
+                    (3,),
+                    dtype='uint64',
+                    buffer=self._data['display_state_mem'].buf
+                )
+                self._data['display_state'][0] = True
+                self._data['display_state'][1:] = 0
 
             self._config = {
                 "progress_style": kwargs.get("progress_style", 'bar'),
@@ -460,42 +462,48 @@ class PathFinder:
     def _connect_nodes(self, node: tuple):
         """connect nodes together"""
         x, y = node
-        
-        # Left
-        dx = x
-        while dx > 0 and self._maze.tiles[dx, y] == 0:
-            dx -= 1
-            # if self._is_node((dx, y)):
-            if (dx, y) in self._data["nodes"]:
-                self._data["nodes"][(x, y)].append((dx, y))
-                break
 
-        # Right
-        dx = x
-        while dx < self._maze.x-1 and self._maze.tiles[dx, y] == 0:
-            dx += 1
-            # if self._is_node((dx, y)):
-            if (dx, y) in self._data["nodes"]:
-                self._data["nodes"][(x, y)].append((dx, y))
-                break
+        def _down():
+            dy = y
+            while dy > 0 and self._maze.tiles[x, dy] == 0:
+                dy -= 1
+                # if self._is_node((x, dy)):
+                if (x, dy) in self._data["nodes"]:
+                    self._data["nodes"][(x, y)].append((x, dy))
+                    break
 
-        # Down
-        dy = y
-        while dy > 0 and self._maze.tiles[x, dy] == 0:
-            dy -= 1
-            # if self._is_node((x, dy)):
-            if (x, dy) in self._data["nodes"]:
-                self._data["nodes"][(x, y)].append((x, dy))
-                break
+        def _left():
+            dx = x
+            while dx > 0 and self._maze.tiles[dx, y] == 0:
+                dx -= 1
+                # if self._is_node((dx, y)):
+                if (dx, y) in self._data["nodes"]:
+                    self._data["nodes"][(x, y)].append((dx, y))
+                    break
 
-        # Up
-        dy = y
-        while dy < self._maze.y-1 and self._maze.tiles[x, dy] == 0:
-            dy += 1
-            # if self._is_node((x, dy)):
-            if (x, dy) in self._data["nodes"]:
-                self._data["nodes"][(x, y)].append((x, dy))
-                break
+        def _right():
+            dx = x
+            while dx < self._maze.x-1 and self._maze.tiles[dx, y] == 0:
+                dx += 1
+                # if self._is_node((dx, y)):
+                if (dx, y) in self._data["nodes"]:
+                    self._data["nodes"][(x, y)].append((dx, y))
+                    break
+
+        def _up():
+            dy = y
+            while dy < self._maze.y-1 and self._maze.tiles[x, dy] == 0:
+                dy += 1
+                # if self._is_node((x, dy)):
+                if (x, dy) in self._data["nodes"]:
+                    self._data["nodes"][(x, y)].append((x, dy))
+                    break
+
+        # order determines order of pathing
+        _down()
+        _left()
+        _right()
+        _up()
 
     def _is_node(self, coords: tuple) -> bool:
         # The start and end of a maze are nodes automatically
@@ -615,6 +623,7 @@ def pygame_display(
 
     import pygame
     from pygame.locals import SRCALPHA
+    from pygame.locals import BLEND_ADD, BLEND_SUB, BLEND_MULT, BLEND_MIN, BLEND_MAX
 
     maze_raw = np.ndarray(maze_shape, dtype=maze_dtype, buffer=maze_mem.buf)
     path_raw = np.ndarray(path_shape, dtype=path_dtype, buffer=path_mem.buf)
@@ -630,12 +639,15 @@ def pygame_display(
         3: (50, 50, 255) # path?
     }
 
+    status_bar_size = (window_size[0], 20)
+    maze_surface_size = (window_size[0], window_size[1]-20)
+
     clock = pygame.time.Clock()
     screen = pygame.display.set_mode(window_size)
-    info_surface = pygame.Surface((window_size[0], 21))
-    maze_surface = pygame.Surface(window_size)
-    path_surface = pygame.Surface(window_size, flags=SRCALPHA)
-    tile_size = int(min(window_size) // max(maze.shape))
+    info_surface = pygame.Surface(status_bar_size)
+    maze_surface = pygame.Surface(maze_surface_size)
+    path_surface = pygame.Surface(maze_surface_size, flags=SRCALPHA)
+    tile_size = int(min(maze_surface_size) // max(maze.shape))
 
     def get_state() -> tuple:
         return tuple(state)
@@ -662,9 +674,11 @@ def pygame_display(
     def _draw_path():
         color = (100, 255, 100)
         pad = int(tile_size // 2)
-        points = [(x*tile_size+pad, y*tile_size+pad) for x, y, in iter(lambda p=iter(path): tuple(next(p)), (0, 0))]
+        points = tuple((x*tile_size+pad, y*tile_size+pad) for x, y, in iter(lambda p=iter(path): tuple(next(p)), (0, 0)))
         path_surface.fill((0, 0, 0, 0))
-        pygame.draw.lines(path_surface, color, False, points)
+        if len(points) < 2:
+            return
+        pygame.draw.aalines(path_surface, color, False, points)
 
     def _draw_info():
         info = get_state()
@@ -701,7 +715,7 @@ def pygame_display(
 
         screen.blit(maze_surface, (0, 0))
         screen.blit(path_surface, (0, 0))
-        screen.blit(info_surface, (0, window_size[1]-21))
+        screen.blit(info_surface, (0, window_size[1]-status_bar_size[1]))
 
         clock.tick(fps)
         pygame.display.flip()
