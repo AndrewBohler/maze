@@ -286,13 +286,16 @@ class PathFinder:
                 buffer=self._data['maze_mem'].buf
             )
             self._data['maze'][:] = self._maze.tiles[:]
-            self._data['display_running_mem'] = self.memory_manager.SharedMemory(4)
-            self._data['display_running'] = np.ndarray(
-                (1,),
-                dtype=int,
-                buffer=self._data['display_running_mem'].buf
+
+            # state = running, step_count, step_per_sec
+            self._data['display_state_mem'] = self.memory_manager.SharedMemory((3*64))
+            self._data['display_state'] = np.ndarray(
+                (3,),
+                dtype='uint64',
+                buffer=self._data['display_state_mem'].buf
             )
-            self._data['display_running'][0] = True
+            self._data['display_state'][0] = True
+            self._data['display_state'][1:] = 0
 
             self._config = {
                 "progress_style": kwargs.get("progress_style", 'bar'),
@@ -345,13 +348,22 @@ class PathFinder:
                                 self._data['path'].dtype,
                                 self._data['path_mem'],
                                 self._data['path'].shape,
-                                self._data['display_running_mem']
+                                self._data['display_state_mem']
                             ],
                             daemon=True
                         )
                         self.display.start()
+
                     else:
-                        _bar()
+                        self._data['display_state'][1] = self._data['step_count']
+                        self._data['display_state'][2] = (int(
+                            self._data['step_count']/(time.time()-start_time)
+                        ))
+                        formatted_time = time.strftime('%H:%M:%S', time.gmtime())
+                        print(
+                            f'solving... {formatted_time}',
+                            end='\r'
+                        )
                 
                 # call function based on progress style
                 {
@@ -597,16 +609,16 @@ def pygame_display(
     path_dtype: np.dtype,
     path_mem: SharedMemoryManager.SharedMemory,
     path_shape: tuple,
-    keep_running_mem: SharedMemoryManager.SharedMemory,
-    fps: int=15,
+    state_mem: SharedMemoryManager.SharedMemory,
+    fps: int=244,
     window_size: tuple=(500, 500)):
 
     import pygame
 
     maze_raw = np.ndarray(maze_shape, dtype=maze_dtype, buffer=maze_mem.buf)
     path_raw = np.ndarray(path_shape, dtype=path_dtype, buffer=path_mem.buf)
-    keep_running = np.ndarray((1,), dtype=int, buffer=keep_running_mem.buf)
-
+    
+    state = np.ndarray((3,), dtype='uint64', buffer=state_mem.buf)
     maze = np.array(maze_raw)
     path = np.array(path_raw)
 
@@ -619,7 +631,11 @@ def pygame_display(
 
     clock = pygame.time.Clock()
     screen = pygame.display.set_mode(window_size)
+    info_surface = pygame.Surface((window_size[0], 21))
     tile_size = int(min(window_size) // max(maze.shape))
+
+    def get_state() -> tuple:
+        return tuple(state)
 
     def _update_maze():
         maze[:] = maze_raw[:]
@@ -639,27 +655,38 @@ def pygame_display(
     def _draw_path():
         color = (100, 255, 100)
         pad = int(tile_size // 2)
-        points = [(x*tile_size+pad, y*tile_size+pad) for x, y in path if not (x, y) == (0, 0)]
+        points = [(x*tile_size+pad, y*tile_size+pad) for x, y, in iter(lambda p=iter(path): tuple(next(p)), (0, 0))]
         pygame.draw.lines(screen, color, False, points)
 
-    def _draw_fps():
-        pass
+    def _draw_info():
+        info = get_state()
+        current_fps = clock.get_fps()
+        fps_font = pygame.font.SysFont('times new roman', 16)
+        f_surf = fps_font.render(
+            f'FPS: {current_fps:.>6.1f} steps/sec: {info[2]:.>9,d} steps: {info[1]:,}',
+            True,
+            (200, 200, 200),
+            (0, 0, 0)
+        )
+        info_surface.fill((0, 0, 0))
+        info_surface.blit(f_surf, (0, 0))
+        screen.blit(info_surface, (0, window_size[1]-21))
 
     def _handle_events():
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
-                keep_running[0] = False
+                state[0] = False
 
     pygame.init()
     screen.fill((0, 0, 0))
 
-    while keep_running[0] == True:
+    while state[0] == True:
         _handle_events()
         _update_maze()
         _update_path()
         _draw_tiles()
         _draw_path()
-        _draw_fps()
+        _draw_info()
 
         clock.tick(fps)
         pygame.display.flip()
