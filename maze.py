@@ -614,6 +614,7 @@ def pygame_display(
     window_size: tuple=(500, 500)):
 
     import pygame
+    from pygame.locals import SRCALPHA
 
     maze_raw = np.ndarray(maze_shape, dtype=maze_dtype, buffer=maze_mem.buf)
     path_raw = np.ndarray(path_shape, dtype=path_dtype, buffer=path_mem.buf)
@@ -632,13 +633,19 @@ def pygame_display(
     clock = pygame.time.Clock()
     screen = pygame.display.set_mode(window_size)
     info_surface = pygame.Surface((window_size[0], 21))
+    maze_surface = pygame.Surface(window_size)
+    path_surface = pygame.Surface(window_size, flags=SRCALPHA)
     tile_size = int(min(window_size) // max(maze.shape))
 
     def get_state() -> tuple:
         return tuple(state)
 
-    def _update_maze():
-        maze[:] = maze_raw[:]
+    def _update_maze() -> bool:
+        if np.equal(maze, maze_raw).all():
+            return False
+        else:
+            maze[:] = maze_raw[:]
+            return True
 
     def _update_path():
         path[:] = path_raw[:]
@@ -647,7 +654,7 @@ def pygame_display(
         for x in range(maze.shape[0]):
             for y in range(maze.shape[1]):
                 pygame.draw.rect(
-                    screen,
+                    maze_surface,
                     color[maze[x, y]],
                     [x*tile_size, y*tile_size, tile_size, tile_size]
                 )
@@ -656,7 +663,8 @@ def pygame_display(
         color = (100, 255, 100)
         pad = int(tile_size // 2)
         points = [(x*tile_size+pad, y*tile_size+pad) for x, y, in iter(lambda p=iter(path): tuple(next(p)), (0, 0))]
-        pygame.draw.lines(screen, color, False, points)
+        path_surface.fill((0, 0, 0, 0))
+        pygame.draw.lines(path_surface, color, False, points)
 
     def _draw_info():
         info = get_state()
@@ -670,7 +678,7 @@ def pygame_display(
         )
         info_surface.fill((0, 0, 0))
         info_surface.blit(f_surf, (0, 0))
-        screen.blit(info_surface, (0, window_size[1]-21))
+        
 
     def _handle_events():
         for event in pygame.event.get():
@@ -680,13 +688,20 @@ def pygame_display(
     pygame.init()
     screen.fill((0, 0, 0))
 
+    _draw_tiles()
+
     while state[0] == True:
         _handle_events()
-        _update_maze()
+        if _update_maze():
+            _draw_tiles()
+
         _update_path()
-        _draw_tiles()
         _draw_path()
         _draw_info()
+
+        screen.blit(maze_surface, (0, 0))
+        screen.blit(path_surface, (0, 0))
+        screen.blit(info_surface, (0, window_size[1]-21))
 
         clock.tick(fps)
         pygame.display.flip()
