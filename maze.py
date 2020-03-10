@@ -273,11 +273,14 @@ class PathFinder:
             self._data["step_count"] = 0
 
             if not self._data.get('path_mem', False):
-                temp = np.empty((self._data['total_nodes'], 2), dtype=int)
-                self._data["path_mem"] = self.memory_manager.SharedMemory(temp.nbytes)
+                print('[info] setting up shared memory')
+                path_len = len(self._maze.tiles.flat)
+
+                sys.setrecursionlimit(len(self._maze.tiles.flat)*2)
+
+                self._data["path_mem"] = self.memory_manager.SharedMemory(self._maze.tiles.nbytes*2)
                 self._data["path"] = np.ndarray(
-                    temp.shape, dtype=int, buffer=self._data["path_mem"].buf)
-                self._data["path"].fill(0)
+                    (path_len, 2), dtype=int, buffer=self._data["path_mem"].buf)
                 
                 self._data["maze_mem"] = self.memory_manager.SharedMemory(
                     self._maze.tiles.nbytes)
@@ -287,7 +290,6 @@ class PathFinder:
                     dtype=self._maze.tiles.dtype,
                     buffer=self._data['maze_mem'].buf
                 )
-                self._data['maze'][:] = self._maze.tiles[:]
 
                 # state = running, step_count, step_per_sec
                 self._data['display_state_mem'] = self.memory_manager.SharedMemory((3*64))
@@ -299,10 +301,14 @@ class PathFinder:
                 self._data['display_state'][0] = True
                 self._data['display_state'][1:] = 0
 
+            self._data['maze'][:] = self._maze.tiles[:]
+            self._data["path"].fill(0)
+
             self._config = {
                 "progress_style": kwargs.get("progress_style", 'bar'),
                 "interval": kwargs.get("interval", 1),
-                "interval_type": kwargs.get("interval_type", "time")
+                "interval_type": kwargs.get("interval_type", "time"),
+                "patience": kwargs.get("patience", 0)
             }
 
         def _validate_maze(self) -> bool:
@@ -393,10 +399,13 @@ class PathFinder:
             """Recursively explores the maze, returns True if the end is found,
             returns False when the end cannot be found"""
             # self._data["node_depth"] += 1
-            _update_progress(self)
             self._data["step_count"] += 1
-
             path.add(coords)
+            
+            _update_progress(self)
+            if self._config['patience'] and time.time() - start_time > self._config['patience']:
+                raise TimeoutError
+
             if coords == self._maze.end:
                 return True
 
@@ -425,11 +434,15 @@ class PathFinder:
         path = set()
 
         self._data['path'][0] = self._maze.start # first point in path
-        if _traverse(self, self._maze.start, path):
-            print("[success] Path found!")
+        try:
+            if _traverse(self, self._maze.start, path):
+                print("[success] Path found!")
 
-        else:
-            print("[fail] No valid path could be found.")
+            else:
+                print("[fail] No valid path could be found.")
+        
+        except TimeoutError:
+            print('[timeout] took too long to solve')
         
         end_time = time.time()
         self._data["solve_time"] = end_time - start_time
@@ -633,10 +646,10 @@ def pygame_display(
     path = np.array(path_raw)
 
     color = {
-        0: (50, 50, 50), # floor
-        1: (0, 200, 200), # wall
+        0: (75, 75, 75), # floor
+        1: (255, 150, 100), # wall
         2: (255, 255, 0), # error?
-        3: (50, 50, 255) # path?
+        3: (150, 250, 150) # path?
     }
 
     status_bar_size = (window_size[0], 20)
@@ -672,13 +685,12 @@ def pygame_display(
                 )
     
     def _draw_path():
-        color = (100, 255, 100)
         pad = int(tile_size // 2)
         points = tuple((x*tile_size+pad, y*tile_size+pad) for x, y, in iter(lambda p=iter(path): tuple(next(p)), (0, 0)))
         path_surface.fill((0, 0, 0, 0))
         if len(points) < 2:
             return
-        pygame.draw.aalines(path_surface, color, False, points)
+        pygame.draw.aalines(path_surface, color[3], False, points)
 
     def _draw_info():
         info = get_state()
