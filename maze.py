@@ -770,7 +770,9 @@ def pygame_display(
     info_surface = pygame.Surface(status_bar_size)
     maze_surface = pygame.Surface(maze_surface_size)
     path_surface = pygame.Surface(maze_surface_size, flags=SRCALPHA)
-    tile_size = int(min(maze_surface_size) // max(maze.shape))
+    tile_size = int(min(maze_surface_size) / min(maze.shape))
+    pad_x = (maze_surface_size[0] - tile_size*maze.shape[0]) // 2
+    pad_y = (maze_surface_size[1] - tile_size*maze.shape[1]) // 2
 
     def get_state() -> tuple:
         return tuple(state)
@@ -835,8 +837,8 @@ def pygame_display(
         _draw_path()
         _draw_info()
 
-        screen.blit(maze_surface, (0, 0))
-        screen.blit(path_surface, (0, 0))
+        screen.blit(maze_surface, (pad_x, pad_y))
+        screen.blit(path_surface, (pad_x, pad_y))
         screen.blit(info_surface, (0, window_size[1]-status_bar_size[1]))
 
         clock.tick(fps)
