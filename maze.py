@@ -51,8 +51,6 @@ class Maze:
 
     def _generate(self, *args, **kwargs):
         self.genstyle = kwargs.get("genstyle", self.genstyle)
-
-        print("Generating maze...")
         
         # Create borders
         self.tiles[0, :] = 1
@@ -66,6 +64,100 @@ class Maze:
 
         self.tiles[self.start] = 0
         self.tiles[self.end] = 0
+
+        def _depth_first_search():
+            self.tiles.fill(1)
+            shape = list(self.tiles.shape)
+            # use an odd shape so that path width is always 1
+            if shape[0] % 2 == 0:
+                shape[0] -= 1
+            
+            if shape[1] % 2 == 0:
+                shape[1] -= 1
+
+            # keep track of visited and mark edges as visited
+            visited = set()
+            for x in range(1, self.shape[0]-1, 2):
+                visited.add((x, 0))
+                visited.add((x, self.shape[1]-1))
+
+            for y in range(1, self.shape[1]-1, 2):
+                visited.add((0, y))
+                visited.add((self.shape[0]-1, y))
+
+            total_to_visit = ((shape[0]-1)//2) * ((shape[1]-1)//2)
+            dont_count_these = len(visited)
+
+            # start and end must be odd to line up with maze
+            self.start = (0, random.choice(list(range(1, shape[1]-1, 2))))
+            self.end = (self.tiles.shape[0]-1, random.choice(list(range(1, shape[1]-1, 2))))
+
+            # clear start and end
+            self.tiles[self.start] = 0
+            self.tiles[self.end] = 0
+
+            # carve out paths using depth-first search algorithm
+            stack = []
+            if self.start[0] == 0:
+                stack.append((1, self.start[1]))
+            elif self.start[1] == 0:
+                stack.append((self.start[0], 1))
+            
+            x, y = int(), int()
+            
+            while stack:
+                x, y = stack.pop()
+                visited.add((x, y))
+
+                # check valid directions
+                direction = []
+                dx = -2
+                if 0 < x+dx < shape[0] and not (x+dx, y) in visited:
+                    direction.append((dx, 0))
+                dx = 2
+                if 0 < x+dx < shape[0] and not (x+dx, y) in visited:
+                    direction.append((dx, 0))
+                dy = -2
+                if 0 < y+dy < shape[1] and not (x, y+dy) in visited:
+                    direction.append((0, dy))
+                dy = 2
+                if 0 < y+dy < shape[1] and not (x, y+dy) in visited:
+                    direction.append((0, dy))
+
+                # choose random direction
+                if direction:
+                    dx, dy = random.choice(direction)
+                    if dx < 0 or dy < 0:
+                        self.tiles[x+dx:x+1, y+dy:y+1] = 0
+                    else:
+                        self.tiles[x:x+dx+1, y:y+dy+1] = 0
+
+                    # build stack
+                    stack.append((x, y))
+                    stack.append((x+dx, y+dy))
+
+                if len(visited)-dont_count_these < total_to_visit + 1:
+                    printProgressBar(
+                        len(visited)-dont_count_these,
+                        total_to_visit,
+                        prefix='generating maze... ',
+                        suffix=f'{len(visited)-dont_count_these}/{total_to_visit}',
+                        length=50
+                    )
+
+                # make sure the last printProgressBar is only printed once
+                if len(visited)-dont_count_these == total_to_visit:
+                    dont_count_these -= 1
+                
+
+            # if the maze is even shaped then connect the end
+            x, y = self.end
+            # print('\n', (x, y), self.end)
+            if x == self.shape[0] - 1:
+                x -= 1
+            elif y == shape[1] - 1:
+                y -= 1
+            self.tiles[x, y] = 0
 
         if self.genstyle == "default":
             print('generation type = "default"')
@@ -134,6 +226,9 @@ class Maze:
                     explored_count, self.num_tiles, f'Generating...',
                     f'{explored_count}/{self.num_tiles}', length=50,
                 )
+
+        elif self.genstyle == "depth_first_search":
+            _depth_first_search()
 
         elif self.genstyle == "random tiles":
             print('generation type = "random tiles"')
@@ -223,7 +318,7 @@ class Maze:
                         suffix=(f'{i}/{total_iterations}'))
 
 
-        print("Maze generation complete:\n")
+        # print("Maze generation complete:\n")
 
     def display(self):
         """Print the maze to the terminal"""
@@ -233,12 +328,16 @@ class Maze:
             row = []
             line = " "
             for y in range(self.y):
-                if self.tiles[x, y] == 0:
+                if (x, y) == self.start:
+                    row.append("S")
+                elif (x, y) == self.end:
+                    row.append("E")
+                elif self.tiles[x, y] == 0:
                     row.append(" ")
                 elif self.tiles[x, y] == 1:
                     row.append("#")
                 else:
-                    row.append("E")
+                    row.append("?")
             print("  " + line.join(row))
 
 class PathFinder:
@@ -260,6 +359,22 @@ class PathFinder:
         """Assign a new maze AND clear data"""
         self._maze = maze
         # self._data = {}
+
+    def start_pygame_display(self):
+        self.display = Process(
+                target=pygame_display,
+                args=[
+                    self._data['maze'].dtype,
+                    self._data['maze_mem'],
+                    self._data['maze'].shape,
+                    self._data['path'].dtype,
+                    self._data['path_mem'],
+                    self._data['path'].shape,
+                    self._data['display_state_mem']
+                ],
+                daemon=True
+            )
+        self.display.start()
 
     def solve(self, *args, **kwargs):
         start_time = time.time()
@@ -311,6 +426,14 @@ class PathFinder:
                 "patience": kwargs.get("patience", 0)
             }
 
+            if not self.display and self._config["progress_style"] == "pygame":
+                self.start_pygame_display()
+
+            elif not self.display.is_alive():
+                del self.display
+                self.start_pygame_display()
+                time.sleep(2)
+
         def _validate_maze(self) -> bool:
             if not isinstance(self._maze, Maze):
                 print(f"[error] {self._maze} is not a {Maze}")
@@ -347,20 +470,7 @@ class PathFinder:
                 
                 def _pygame():
                     if not self.display:
-                        self.display = Process(
-                            target=pygame_display,
-                            args=[
-                                self._data['maze'].dtype,
-                                self._data['maze_mem'],
-                                self._data['maze'].shape,
-                                self._data['path'].dtype,
-                                self._data['path_mem'],
-                                self._data['path'].shape,
-                                self._data['display_state_mem']
-                            ],
-                            daemon=True
-                        )
-                        self.display.start()
+                        self.start_pygame_display()
 
                     else:
                         self._data['display_state'][1] = self._data['step_count']
@@ -632,7 +742,7 @@ def pygame_display(
     path_shape: tuple,
     state_mem: SharedMemoryManager.SharedMemory,
     fps: int=244,
-    window_size: tuple=(500, 500)):
+    window_size: tuple=(1280, 720)):
 
     import pygame
     from pygame.locals import SRCALPHA
@@ -736,10 +846,8 @@ def pygame_display(
 
 
 if __name__ == "__main__":
-    print("maze.py is now running, this is a WIP\n")
     
     while True:
-        print('\n')
 
         test_maze = Maze(10, 10)
         test_maze.display()
