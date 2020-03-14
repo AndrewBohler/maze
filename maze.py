@@ -135,19 +135,19 @@ class Maze:
                     # build stack
                     stack.append((x, y))
                     stack.append((x+dx, y+dy))
-
-                if len(visited)-dont_count_these < total_to_visit + 1:
+                
+                if (n_visited := len(visited)-dont_count_these) < total_to_visit + 1:
                     printProgressBar(
-                        len(visited)-dont_count_these,
+                        n_visited,
                         total_to_visit,
                         prefix='generating maze... ',
-                        suffix=f'{len(visited)-dont_count_these}/{total_to_visit}',
+                        suffix=f'{n_visited}/{total_to_visit}',
                         length=50
-                    )
+                )
 
-                # make sure the last printProgressBar is only printed once
-                if len(visited)-dont_count_these == total_to_visit:
-                    dont_count_these -= 1
+                    # make sure the last printProgressBar is only printed once
+                    if n_visited == total_to_visit:
+                        dont_count_these -= 1
                 
 
             # if the maze is even shaped then connect the end
@@ -555,6 +555,11 @@ class PathFinder:
             print('[timeout] took too long to solve')
         
         end_time = time.time()
+
+        self._data['display_state'][1] = self._data['step_count']
+        self._data['display_state'][2] = (
+            int(self._data['step_count']/(time.time()-start_time))
+        )
         self._data["solve_time"] = end_time - start_time
 
 
@@ -757,7 +762,7 @@ def pygame_display(
 
     color = {
         0: (75, 75, 75), # floor
-        1: (255, 150, 100), # wall
+        1: (200, 200, 200), # wall
         2: (255, 255, 0), # error?
         3: (150, 250, 150) # path?
     }
@@ -774,6 +779,18 @@ def pygame_display(
     pad_x = (maze_surface_size[0] - tile_size*maze.shape[0]) // 2
     pad_y = (maze_surface_size[1] - tile_size*maze.shape[1]) // 2
 
+    def rotate_color(rate) -> tuple:
+        i = 0
+        g_offset = math.pi * 2/3
+        b_offset = math.pi * 4/3
+        while True:
+            # c = i/div * math.pi
+            r = int(math.sin(i)*127) + 128
+            g = int(math.sin(i+g_offset)*127) + 128
+            b = int(math.sin(i+b_offset)*127) + 128
+            yield (r, g, b)
+            i += rate
+    
     def get_state() -> tuple:
         return tuple(state)
 
@@ -796,13 +813,27 @@ def pygame_display(
                     [x*tile_size, y*tile_size, tile_size, tile_size]
                 )
     
-    def _draw_path():
-        pad = int(tile_size // 2)
+    def _draw_path(lines_per_color=10):
+        pad = tile_size / 2
+        pad -= pad % 2 # fixes alignment for even/odd pixel padding
         points = tuple((x*tile_size+pad, y*tile_size+pad) for x, y, in iter(lambda p=iter(path): tuple(next(p)), (0, 0)))
         path_surface.fill((0, 0, 0, 0))
+        color_gen = rotate_color(0.02)
+        # current_color = next(color_gen)
+        n_points = len(points)
         if len(points) < 2:
             return
-        pygame.draw.aalines(path_surface, color[3], False, points)
+
+        n_colors = n_points // lines_per_color
+        
+        for c in range(n_colors):
+            i = c * lines_per_color
+            pygame.draw.lines(
+                path_surface, next(color_gen), False, points[i:i+lines_per_color+1], tile_size)
+
+        if n_points % lines_per_color > 1:
+            i = n_colors * lines_per_color
+            pygame.draw.lines(path_surface, next(color_gen), False, points[i:], tile_size)
 
     def _draw_info():
         info = get_state()
