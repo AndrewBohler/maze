@@ -5,11 +5,21 @@ from multiprocessing.managers import SharedMemoryManager
 import numpy as np
 import random
 import sys
+from typing import *
 import time
 
 
 # Print iterations progress
-def printProgressBar (iteration, total, prefix = '', suffix = '', decimals = 1, length = 100, fill = '█', printEnd = "\r"):
+def printProgressBar(
+    iteration,
+    total,
+    prefix="",
+    suffix="",
+    decimals=1,
+    length=100,
+    fill="█",
+    printEnd="\r",
+):
     """
     Call in a loop to create terminal progress bar
     @params:
@@ -24,15 +34,14 @@ def printProgressBar (iteration, total, prefix = '', suffix = '', decimals = 1, 
     """
     percent = ("{0:." + str(decimals) + "f}").format(100 * (iteration / float(total)))
     filledLength = int(length * iteration // total)
-    bar = fill * filledLength + '-' * (length - filledLength)
-    print('\r%s |%s| %s%% %s' % (prefix, bar, percent, suffix), end = printEnd)
+    bar = fill * filledLength + "-" * (length - filledLength)
+    print("\r%s |%s| %s%% %s" % (prefix, bar, percent, suffix), end=printEnd)
     # Print New Line on Complete
-    if iteration == total: 
+    if iteration == total:
         print()
 
 
 class Maze:
-
     def __init__(self, x=10, y=10, *args, **kwargs):
         self.x = x
         self.y = y
@@ -44,14 +53,14 @@ class Maze:
         self.tiles = np.zeros((x, y), dtype=int)
 
         self._generate(**kwargs)
-    
+
     def regenerate(self, *args, **kwargs):
         self.tiles.fill(0)
         self._generate(*args, **kwargs)
 
     def _generate(self, *args, **kwargs):
         self.genstyle = kwargs.get("genstyle", self.genstyle)
-        
+
         # Create borders
         self.tiles[0, :] = 1
         self.tiles[-1, :] = 1
@@ -59,8 +68,8 @@ class Maze:
         self.tiles[:, -1] = 1
 
         # Clear start and end positions
-        self.start = (random.randint(1, self.x-2), 0)
-        self.end = (random.randint(1, self.x-2), self.y-1)
+        self.start = (random.randint(1, self.x - 2), 0)
+        self.end = (random.randint(1, self.x - 2), self.y - 1)
 
         self.tiles[self.start] = 0
         self.tiles[self.end] = 0
@@ -71,26 +80,29 @@ class Maze:
             # use an odd shape so that path width is always 1
             if shape[0] % 2 == 0:
                 shape[0] -= 1
-            
+
             if shape[1] % 2 == 0:
                 shape[1] -= 1
 
             # keep track of visited and mark edges as visited
             visited = set()
-            for x in range(1, self.shape[0]-1, 2):
+            for x in range(1, self.shape[0] - 1, 2):
                 visited.add((x, 0))
-                visited.add((x, self.shape[1]-1))
+                visited.add((x, self.shape[1] - 1))
 
-            for y in range(1, self.shape[1]-1, 2):
+            for y in range(1, self.shape[1] - 1, 2):
                 visited.add((0, y))
-                visited.add((self.shape[0]-1, y))
+                visited.add((self.shape[0] - 1, y))
 
-            total_to_visit = ((shape[0]-1)//2) * ((shape[1]-1)//2)
+            total_to_visit = ((shape[0] - 1) // 2) * ((shape[1] - 1) // 2)
             dont_count_these = len(visited)
 
             # start and end must be odd to line up with maze
-            self.start = (0, random.choice(list(range(1, shape[1]-1, 2))))
-            self.end = (self.tiles.shape[0]-1, random.choice(list(range(1, shape[1]-1, 2))))
+            self.start = (0, random.choice(list(range(1, shape[1] - 1, 2))))
+            self.end = (
+                self.tiles.shape[0] - 1,
+                random.choice(list(range(1, shape[1] - 1, 2))),
+            )
 
             # clear start and end
             self.tiles[self.start] = 0
@@ -102,9 +114,9 @@ class Maze:
                 stack.append((1, self.start[1]))
             elif self.start[1] == 0:
                 stack.append((self.start[0], 1))
-            
+
             x, y = int(), int()
-            
+
             while stack:
                 x, y = stack.pop()
                 visited.add((x, y))
@@ -112,43 +124,42 @@ class Maze:
                 # check valid directions
                 direction = []
                 dx = -2
-                if 0 < x+dx < shape[0] and not (x+dx, y) in visited:
+                if 0 < x + dx < shape[0] and not (x + dx, y) in visited:
                     direction.append((dx, 0))
                 dx = 2
-                if 0 < x+dx < shape[0] and not (x+dx, y) in visited:
+                if 0 < x + dx < shape[0] and not (x + dx, y) in visited:
                     direction.append((dx, 0))
                 dy = -2
-                if 0 < y+dy < shape[1] and not (x, y+dy) in visited:
+                if 0 < y + dy < shape[1] and not (x, y + dy) in visited:
                     direction.append((0, dy))
                 dy = 2
-                if 0 < y+dy < shape[1] and not (x, y+dy) in visited:
+                if 0 < y + dy < shape[1] and not (x, y + dy) in visited:
                     direction.append((0, dy))
 
                 # choose random direction
                 if direction:
                     dx, dy = random.choice(direction)
                     if dx < 0 or dy < 0:
-                        self.tiles[x+dx:x+1, y+dy:y+1] = 0
+                        self.tiles[x + dx : x + 1, y + dy : y + 1] = 0
                     else:
-                        self.tiles[x:x+dx+1, y:y+dy+1] = 0
+                        self.tiles[x : x + dx + 1, y : y + dy + 1] = 0
 
                     # build stack
                     stack.append((x, y))
-                    stack.append((x+dx, y+dy))
-                
-                if (n_visited := len(visited)-dont_count_these) < total_to_visit + 1:
+                    stack.append((x + dx, y + dy))
+
+                if (n_visited := len(visited) - dont_count_these) < total_to_visit + 1:
                     printProgressBar(
                         n_visited,
                         total_to_visit,
-                        prefix='generating maze... ',
-                        suffix=f'{n_visited}/{total_to_visit}',
-                        length=50
-                )
+                        prefix="generating maze... ",
+                        suffix=f"{n_visited}/{total_to_visit}",
+                        length=50,
+                    )
 
                     # make sure the last printProgressBar is only printed once
                     if n_visited == total_to_visit:
                         dont_count_these -= 1
-                
 
             # if the maze is even shaped then connect the end
             x, y = self.end
@@ -165,20 +176,24 @@ class Maze:
             self.tiles[1:-1, 1:-1] = 1
 
             # Keep track of covered ground using exploration matrix
-            explored = np.ones((self.x, self.y), dtype = int)
+            explored = np.ones((self.x, self.y), dtype=int)
 
             # pre-explore mmaze border (still unexplored while > 0)
             explored[0, :] = 0
             explored[-1, :] = 0
             explored[:, 0] = 0
             explored[:, -1] = 0
-            
+
             x, y = self.start
             # Starting position 1 tile into maze from entrance
-            if x == 0: x += 1
-            elif x == self.x: x -= 1
-            if y == 0: y += 1
-            elif y == self.y: y -= 1
+            if x == 0:
+                x += 1
+            elif x == self.x:
+                x -= 1
+            if y == 0:
+                y += 1
+            elif y == self.y:
+                y -= 1
 
             def _get_unexplored_coords(self) -> tuple:
                 """returns coords of unexplored tile, or None"""
@@ -194,7 +209,7 @@ class Maze:
                 find_unexplored = _get_unexplored_coords(self)
 
                 # Right, left, up, down
-                direction = [(x+1, y), (x-1, y), (x, y+1), (x, y-1)]
+                direction = [(x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)]
                 random.shuffle(direction)
 
                 while direction:
@@ -209,10 +224,10 @@ class Maze:
 
                     # if unexplored then move
                     elif explored[dx, dy] > 0:
-                        explored[x-1:x+1, y-1:y+1] = 0
+                        explored[x - 1 : x + 1, y - 1 : y + 1] = 0
                         x, y = dx, dy
                         break
-                    
+
                     # reposition if all directions are already explored
                     if not direction:
                         x, y = next(find_unexplored)
@@ -220,11 +235,14 @@ class Maze:
                             pass
                         else:
                             self.tiles[x, y] = 0
-            
+
                 explored_count = self.num_tiles - np.sum(explored)
                 printProgressBar(
-                    explored_count, self.num_tiles, f'Generating...',
-                    f'{explored_count}/{self.num_tiles}', length=50,
+                    explored_count,
+                    self.num_tiles,
+                    f"Generating...",
+                    f"{explored_count}/{self.num_tiles}",
+                    length=50,
                 )
 
         elif self.genstyle == "depth_first_search":
@@ -232,68 +250,69 @@ class Maze:
 
         elif self.genstyle == "random tiles":
             print('generation type = "random tiles"')
-            walls = np.random.randint(0, 2, (self.x-2, self.y-2), dtype=int)
+            walls = np.random.randint(0, 2, (self.x - 2, self.y - 2), dtype=int)
             self.tiles[1:-1, 1:-1] = walls
 
         elif self.genstyle == "random walls":
             print('generation type = "random walls"')
 
-            wall_count = kwargs.get("wall_count", (self.x+self.y)//2)
-            max_wall_size = kwargs.get("max_wall_size", (min([self.y, self.y])//4))
+            wall_count = kwargs.get("wall_count", (self.x + self.y) // 2)
+            max_wall_size = kwargs.get("max_wall_size", (min([self.y, self.y]) // 4))
 
             while wall_count > 0:
                 wall_count -= 1
-                x = random.randint(1, self.x-1)
-                y = random.randint(1, self.y-1)
+                x = random.randint(1, self.x - 1)
+                y = random.randint(1, self.y - 1)
                 direction = random.randint(1, 2)
                 wall_size = random.randint(1, max_wall_size)
 
                 if direction == 1:
                     for i in range(wall_size):
                         if x + i < self.x:
-                            self.tiles[x+i, y] = 1
+                            self.tiles[x + i, y] = 1
                         if x - i > 0:
-                            self.tiles[x-i, y] = 1
-                            
+                            self.tiles[x - i, y] = 1
+
                 elif direction == 2:
                     for i in range(wall_size):
                         if y + i < self.y:
-                            self.tiles[x, y+i] = 1
+                            self.tiles[x, y + i] = 1
                         if y - i > 0:
-                            self.tiles[x, y-i] = 1
+                            self.tiles[x, y - i] = 1
 
         else:
             print("[Error] generation type unknown")
 
-        if kwargs.get('fill', False):
+        if kwargs.get("fill", False):
             """Narrow pathways by filling in elligible open space"""
-            
-            print('Filling in open space!!!!')
 
-            def get_slice(p:tuple) -> np.array:
-                return self.tiles[p[0]-1:p[0]+2, p[1]-1:p[1]+2]
+            print("Filling in open space!!!!")
+
+            def get_slice(p: tuple) -> np.array:
+                return self.tiles[p[0] - 1 : p[0] + 2, p[1] - 1 : p[1] + 2]
 
             def no_direction(a: np.array) -> bool:
-                if a[1, 0] == 0 and a[1, 2] == 0 and \
-                    a[0, 1] == 0 and a[2, 1] == 0:
+                if a[1, 0] == 0 and a[1, 2] == 0 and a[0, 1] == 0 and a[2, 1] == 0:
                     return True
-                else: return False
+                else:
+                    return False
 
             def double_wide(a: np.array) -> bool:
-                up = np.array([[1, 1, 1], [0, 0 , 0], [0, 0, 0]])
+                up = np.array([[1, 1, 1], [0, 0, 0], [0, 0, 0]])
                 down = np.array([[0, 0, 0], [0, 0, 0], [1, 1, 1]])
                 left = np.array([[1, 0, 0], [1, 0, 0], [1, 0, 0]])
                 right = np.array([[0, 0, 1], [0, 0, 1], [0, 0, 1]])
                 for d in [up, down, left, right]:
-                    if np.array_equal(a, d): return True
+                    if np.array_equal(a, d):
+                        return True
                 return False
 
-            total_iterations = (self.x-2)*(self.y-2)*2
+            total_iterations = (self.x - 2) * (self.y - 2) * 2
             i = 0
 
             # check "double wide"
-            for x in range(1, self.x-1):
-                for y in range(1, self.y-1):
+            for x in range(1, self.x - 1):
+                for y in range(1, self.y - 1):
                     i += 1
                     if self.tiles[x, y] == 0:
                         a = get_slice((x, y))
@@ -301,12 +320,15 @@ class Maze:
                             self.tiles[x, y] = 1
 
                     printProgressBar(
-                        i, total_iterations, length=50,
-                        suffix=(f'{i}/{total_iterations}'))
+                        i,
+                        total_iterations,
+                        length=50,
+                        suffix=(f"{i}/{total_iterations}"),
+                    )
 
             # check "no direction"
-            for x in range(1, self.x-1):
-                for y in range(1, self.y-1):
+            for x in range(1, self.x - 1):
+                for y in range(1, self.y - 1):
                     i += 1
                     if self.tiles[x, y] == 0:
                         a = get_slice((x, y))
@@ -314,9 +336,11 @@ class Maze:
                             self.tiles[x, y] = 1
 
                     printProgressBar(
-                        i, total_iterations, length=50,
-                        suffix=(f'{i}/{total_iterations}'))
-
+                        i,
+                        total_iterations,
+                        length=50,
+                        suffix=(f"{i}/{total_iterations}"),
+                    )
 
         # print("Maze generation complete:\n")
 
@@ -340,11 +364,9 @@ class Maze:
                     row.append("?")
             print("  " + line.join(row))
 
+
 class PathFinder:
-    def __init__(self,
-    maze: Maze = None,
-    memory_manager: SharedMemoryManager = None
-    ):
+    def __init__(self, maze: Maze = None, memory_manager: SharedMemoryManager = None):
         self._maze = maze
         self.display = None
         self.memory_manager = memory_manager
@@ -362,68 +384,72 @@ class PathFinder:
 
     def start_pygame_display(self):
         self.display = Process(
-                target=pygame_display,
-                args=[
-                    self._data['maze'].dtype,
-                    self._data['maze_mem'],
-                    self._data['maze'].shape,
-                    self._data['path'].dtype,
-                    self._data['path_mem'],
-                    self._data['path'].shape,
-                    self._data['display_state_mem']
-                ],
-                daemon=True
-            )
+            target=pygame_display,
+            args=[
+                self._data["maze"].dtype,
+                self._data["maze_mem"],
+                self._data["maze"].shape,
+                self._data["path"].dtype,
+                self._data["path_mem"],
+                self._data["path"].shape,
+                self._data["display_state_mem"],
+            ],
+            daemon=True,
+        )
         self.display.start()
 
     def solve(self, *args, **kwargs):
         start_time = time.time()
-        time.sleep(0.000001) # prevent division by zero error
+        time.sleep(0.000001)  # prevent division by zero error
 
         def _setup_solve_data(**kwargs):
-            
+
             self._data["node_depth"] = 0
             self._data["total_nodes"] = sum([len(x) for x in self._data["nodes"]])
             self._data["node_factorial"] = math.factorial(len(self._data["nodes"]))
             self._data["step_count"] = 0
 
-            if not self._data.get('path_mem', False):
-                print('[info] setting up shared memory')
+            if not self._data.get("path_mem", False):
+                print("[info] setting up shared memory")
                 path_len = len(self._maze.tiles.flat)
 
-                sys.setrecursionlimit(len(self._maze.tiles.flat)*2)
+                sys.setrecursionlimit(len(self._maze.tiles.flat) * 2)
 
-                self._data["path_mem"] = self.memory_manager.SharedMemory(self._maze.tiles.nbytes*2)
+                self._data["path_mem"] = self.memory_manager.SharedMemory(
+                    self._maze.tiles.nbytes * 2
+                )
                 self._data["path"] = np.ndarray(
-                    (path_len, 2), dtype=int, buffer=self._data["path_mem"].buf)
-                
-                self._data["maze_mem"] = self.memory_manager.SharedMemory(
-                    self._maze.tiles.nbytes)
+                    (path_len, 2), dtype=int, buffer=self._data["path_mem"].buf
+                )
 
-                self._data['maze'] = np.ndarray(
+                self._data["maze_mem"] = self.memory_manager.SharedMemory(
+                    self._maze.tiles.nbytes
+                )
+
+                self._data["maze"] = np.ndarray(
                     self._maze.tiles.shape,
                     dtype=self._maze.tiles.dtype,
-                    buffer=self._data['maze_mem'].buf
+                    buffer=self._data["maze_mem"].buf,
                 )
 
                 # state = running, step_count, step_per_sec
-                self._data['display_state_mem'] = self.memory_manager.SharedMemory((3*64))
-                self._data['display_state'] = np.ndarray(
-                    (3,),
-                    dtype='uint64',
-                    buffer=self._data['display_state_mem'].buf
+                self._data["display_state_mem"] = self.memory_manager.SharedMemory(
+                    (3 * 64)
                 )
-                self._data['display_state'][0] = True
-                self._data['display_state'][1:] = 0
+                self._data["display_state"] = np.ndarray(
+                    (3,), dtype="uint64", buffer=self._data["display_state_mem"].buf
+                )
+                self._data["display_state"][0] = True
+                self._data["display_state"][1:] = 0
 
-            self._data['maze'][:] = self._maze.tiles[:]
+            self._data["maze"][:] = self._maze.tiles[:]
             self._data["path"].fill(0)
 
             self._config = {
-                "progress_style": kwargs.get("progress_style", 'bar'),
+                "progress_style": kwargs.get("progress_style", "bar"),
                 "interval": kwargs.get("interval", 1),
                 "interval_type": kwargs.get("interval_type", "time"),
-                "patience": kwargs.get("patience", 0)
+                "patience": kwargs.get("patience", 0),
             }
 
             if not self.display and self._config["progress_style"] == "pygame":
@@ -440,23 +466,25 @@ class PathFinder:
                 return False
 
         def _check_unwalked(x, y, path_number) -> bool:
-            if (x, y) in self._data["path"][path_number]: return False
-            else: return True
+            if (x, y) in self._data["path"][path_number]:
+                return False
+            else:
+                return True
 
         def _update_progress(self):
-            
             def _show_progress(self):
-
                 def _node_count():
-                    sys.stdout.write(f'\r{self._data["node_depth"]} of {self._data["total_nodes"]} nodes')
+                    sys.stdout.write(
+                        f'\r{self._data["node_depth"]} of {self._data["total_nodes"]} nodes'
+                    )
                     sys.stdout.flush()
 
                 def _bar():
                     printProgressBar(
                         len(path),
                         self._data["total_nodes"],
-                        prefix='Finding path...',
-                        suffix='node depth'
+                        prefix="Finding path...",
+                        suffix="node depth",
                     )
 
                 def _path():
@@ -465,55 +493,53 @@ class PathFinder:
                     print(
                         f"Steps: {self._data['step_count']:,} ",
                         f"Time: {(time.time()-start_time):.0f} sec",
-                        f"\nSteps/second: {int(self._data['step_count']/(current_time-start_time)):,}"
+                        f"\nSteps/second: {int(self._data['step_count']/(current_time-start_time)):,}",
                     )
-                
+
                 def _pygame():
                     if not self.display:
                         self.start_pygame_display()
 
                     else:
-                        self._data['display_state'][1] = self._data['step_count']
-                        self._data['display_state'][2] = (int(
-                            self._data['step_count']/(time.time()-start_time)
-                        ))
-                        formatted_time = time.strftime('%H:%M:%S', time.gmtime())
-                        print(
-                            f'solving... {formatted_time}',
-                            end='\r'
+                        self._data["display_state"][1] = self._data["step_count"]
+                        self._data["display_state"][2] = int(
+                            self._data["step_count"] / (time.time() - start_time)
                         )
-                
+                        formatted_time = time.strftime("%H:%M:%S", time.gmtime())
+                        print(f"solving... {formatted_time}", end="\r")
+
                 # call function based on progress style
                 {
-                    'node_count': _node_count,
-                    'bar': _bar,
-                    'path': _path,
-                    'pygame': _pygame
-                }.get(self._config['progress_style'])()
+                    "node_count": _node_count,
+                    "bar": _bar,
+                    "path": _path,
+                    "pygame": _pygame,
+                }.get(self._config["progress_style"])()
 
-            if self._config["interval_type"] == 'time':
-                if time.time() - self._data.get("progress_timer", start_time) \
-                    > self._config["interval"]:
+            if self._config["interval_type"] == "time":
+                if (
+                    time.time() - self._data.get("progress_timer", start_time)
+                    > self._config["interval"]
+                ):
                     _show_progress(self)
                     self._data["progress_timer"] = time.time()
-            
-            elif self._config["interval_type"] == 'step_count':
+
+            elif self._config["interval_type"] == "step_count":
                 if self._data["step_count"] % self._config["interval"] == 0:
                     _show_progress(self)
-                
 
-        def _traverse(self,
-        coords: tuple,
-        path: set
-        ) -> bool:
+        def _traverse(self, coords: tuple, path: set) -> bool:
             """Recursively explores the maze, returns True if the end is found,
             returns False when the end cannot be found"""
             # self._data["node_depth"] += 1
             self._data["step_count"] += 1
             path.add(coords)
-            
+
             _update_progress(self)
-            if self._config['patience'] and time.time() - start_time > self._config['patience']:
+            if (
+                self._config["patience"]
+                and time.time() - start_time > self._config["patience"]
+            ):
                 raise TimeoutError
 
             if coords == self._maze.end:
@@ -524,15 +550,15 @@ class PathFinder:
             # recursively traverse each connection
             for new_coords in connections:
                 # set next point in path
-                self._data['node_depth'] += 1
-                self._data['path'][self._data['node_depth']] = new_coords
+                self._data["node_depth"] += 1
+                self._data["path"][self._data["node_depth"]] = new_coords
 
                 if _traverse(self, new_coords, path):
                     return True
 
                 else:
                     # remove point from path
-                    self._data['path'][self._data['node_depth']] = (0, 0)
+                    self._data["path"][self._data["node_depth"]] = (0, 0)
                     self._data["node_depth"] -= 1
                     path.remove(new_coords)
 
@@ -543,25 +569,24 @@ class PathFinder:
         _setup_solve_data(**kwargs)
         path = set()
 
-        self._data['path'][0] = self._maze.start # first point in path
+        self._data["path"][0] = self._maze.start  # first point in path
         try:
             if _traverse(self, self._maze.start, path):
                 print("[success] Path found!")
 
             else:
                 print("[fail] No valid path could be found.")
-        
+
         except TimeoutError:
-            print('[timeout] took too long to solve')
-        
+            print("[timeout] took too long to solve")
+
         end_time = time.time()
 
-        self._data['display_state'][1] = self._data['step_count']
-        self._data['display_state'][2] = (
-            int(self._data['step_count']/(time.time()-start_time))
+        self._data["display_state"][1] = self._data["step_count"]
+        self._data["display_state"][2] = int(
+            self._data["step_count"] / (time.time() - start_time)
         )
         self._data["solve_time"] = end_time - start_time
-
 
     def create_nodes(self):
         """ Map the maze into a list of nodes"""
@@ -575,17 +600,19 @@ class PathFinder:
                 if self._is_node((x, y)):
                     self._data["nodes"][(x, y)] = []
                 printProgressBar(
-                    i, map_size, 'Creating nodes...  ',
-                    f'{i}/{map_size}', length=50)
+                    i, map_size, "Creating nodes...  ", f"{i}/{map_size}", length=50
+                )
 
         numer_of_nodes = len(self._data["nodes"])
         for i, node in enumerate(self._data["nodes"].keys()):
             self._connect_nodes(node)
             printProgressBar(
-                i, numer_of_nodes-1, 'Connecting nodes...',
-                f'{i+1}/{numer_of_nodes}', length=50
+                i,
+                numer_of_nodes - 1,
+                "Connecting nodes...",
+                f"{i+1}/{numer_of_nodes}",
+                length=50,
             )
-
 
     def _connect_nodes(self, node: tuple):
         """connect nodes together"""
@@ -611,7 +638,7 @@ class PathFinder:
 
         def _right():
             dx = x
-            while dx < self._maze.x-1 and self._maze.tiles[dx, y] == 0:
+            while dx < self._maze.x - 1 and self._maze.tiles[dx, y] == 0:
                 dx += 1
                 # if self._is_node((dx, y)):
                 if (dx, y) in self._data["nodes"]:
@@ -620,7 +647,7 @@ class PathFinder:
 
         def _up():
             dy = y
-            while dy < self._maze.y-1 and self._maze.tiles[x, dy] == 0:
+            while dy < self._maze.y - 1 and self._maze.tiles[x, dy] == 0:
                 dy += 1
                 # if self._is_node((x, dy)):
                 if (x, dy) in self._data["nodes"]:
@@ -641,18 +668,18 @@ class PathFinder:
         x, y = coords
 
         # If all 8 surrounding tiles are clear then ignore
-        if not self._maze.tiles[x-1:x+2, y-1:y+2].any() > 0:
+        if not self._maze.tiles[x - 1 : x + 2, y - 1 : y + 2].any() > 0:
             return False
 
         # Check if the cardinal directions are open
         left, right, up, down = False, False, False, False
-        if x > 0 and self._maze.tiles[x-1, y] == 0:
+        if x > 0 and self._maze.tiles[x - 1, y] == 0:
             left = True
-        if x < self._maze.x-1 and self._maze.tiles[x+1, y] == 0:
+        if x < self._maze.x - 1 and self._maze.tiles[x + 1, y] == 0:
             right = True
-        if y > 0 and self._maze.tiles[x, y-1] == 0:
+        if y > 0 and self._maze.tiles[x, y - 1] == 0:
             down = True
-        if y < self._maze.y-1 and self._maze.tiles[x, y+1] == 0:
+        if y < self._maze.y - 1 and self._maze.tiles[x, y + 1] == 0:
             up = True
 
         # straight paths and deadends are not nodes, but corners are!
@@ -664,35 +691,30 @@ class PathFinder:
         return False
 
     def display_nodes(self):
-        if not 'nodes' in self._data:
+        if not "nodes" in self._data:
             print("[error] cannont display nodes, data missing")
             return
 
         for x in range(self._maze.x):
-            line = [' ']
+            line = [" "]
             for y in range(self._maze.y):
                 if self._maze.tiles[x, y] == 1:
-                    line.append('#')
-                elif (x, y) in self._data['nodes'].keys():
-                    line.append('+')
+                    line.append("#")
+                elif (x, y) in self._data["nodes"].keys():
+                    line.append("+")
                 elif self._maze.tiles[x, y] == 0:
-                    line.append(' ')
+                    line.append(" ")
                 else:
-                    line.append('e')
-            print(' '.join(line))
+                    line.append("e")
+            print(" ".join(line))
 
     def show_path(self, path: tuple = None):
         """Prints to terminal the map with the path :n: drawn on it"""
         if not path is list:
-            path = [tuple(p) for p in self._data['path'][:] if tuple(p) != (0, 0)]            
+            path = [tuple(p) for p in self._data["path"][:] if tuple(p) != (0, 0)]
 
         # tile type to character lookup dict
-        characters = {
-                0: ' ',
-                1: '#',
-                2: '2',
-                3: '.'
-            }
+        characters = {0: " ", 1: "#", 2: "2", 3: "."}
 
         output = []
 
@@ -703,12 +725,16 @@ class PathFinder:
 
             else:
                 dx = 0
-                if b[0] > a[0]: dx = 1
-                elif b[0] < a[0]: dx = -1
+                if b[0] > a[0]:
+                    dx = 1
+                elif b[0] < a[0]:
+                    dx = -1
 
                 dy = 0
-                if b[1] > a[1]: dy = 1
-                elif b[1] < a[1]: dy = -1
+                if b[1] > a[1]:
+                    dy = 1
+                elif b[1] < a[1]:
+                    dy = -1
 
                 # paint path onto maze
                 x, y = a
@@ -725,17 +751,19 @@ class PathFinder:
                 point_a = point_b
 
             for x in range(maze.shape[0]):
-                line = [' ']
+                line = [" "]
                 for y in range(maze.shape[1]):
-                    if (x, y) == path[-1]: line.append('X')
-                    else: line.append(characters[maze[x, y]])
-                output.append(' '.join(line))
+                    if (x, y) == path[-1]:
+                        line.append("X")
+                    else:
+                        line.append(characters[maze[x, y]])
+                output.append(" ".join(line))
 
         if output:
-            print('\n'.join(output))
+            print("\n".join(output))
 
         else:
-            print('[error] No path to display')
+            print("[error] No path to display")
 
 
 def pygame_display(
@@ -746,8 +774,9 @@ def pygame_display(
     path_mem: SharedMemoryManager.SharedMemory,
     path_shape: tuple,
     state_mem: SharedMemoryManager.SharedMemory,
-    fps: int=244,
-    window_size: tuple=(1280, 720)):
+    fps: int = 244,
+    window_size: tuple = (1280, 720),
+):
 
     import pygame
     from pygame.locals import SRCALPHA
@@ -755,20 +784,20 @@ def pygame_display(
 
     maze_raw = np.ndarray(maze_shape, dtype=maze_dtype, buffer=maze_mem.buf)
     path_raw = np.ndarray(path_shape, dtype=path_dtype, buffer=path_mem.buf)
-    
-    state = np.ndarray((3,), dtype='uint64', buffer=state_mem.buf)
+
+    state = np.ndarray((3,), dtype="uint64", buffer=state_mem.buf)
     maze = np.array(maze_raw)
     path = np.array(path_raw)
 
     color = {
-        0: (75, 75, 75), # floor
-        1: (200, 200, 200), # wall
-        2: (255, 255, 0), # error?
-        3: (150, 250, 150) # path?
+        0: (75, 75, 75),  # floor
+        1: (200, 200, 200),  # wall
+        2: (255, 255, 0),  # error?
+        3: (150, 250, 150),  # path?
     }
 
     status_bar_size = (window_size[0], 20)
-    maze_surface_size = (window_size[0], window_size[1]-20)
+    maze_surface_size = (window_size[0], window_size[1] - 20)
 
     clock = pygame.time.Clock()
     screen = pygame.display.set_mode(window_size)
@@ -776,21 +805,21 @@ def pygame_display(
     maze_surface = pygame.Surface(maze_surface_size)
     path_surface = pygame.Surface(maze_surface_size, flags=SRCALPHA)
     tile_size = int(min(maze_surface_size) / min(maze.shape))
-    pad_x = (maze_surface_size[0] - tile_size*maze.shape[0]) // 2
-    pad_y = (maze_surface_size[1] - tile_size*maze.shape[1]) // 2
+    pad_x = (maze_surface_size[0] - tile_size * maze.shape[0]) // 2
+    pad_y = (maze_surface_size[1] - tile_size * maze.shape[1]) // 2
 
     def rotate_color(rate) -> tuple:
         i = 0
-        g_offset = math.pi * 2/3
-        b_offset = math.pi * 4/3
+        g_offset = math.pi * 2 / 3
+        b_offset = math.pi * 4 / 3
         while True:
             # c = i/div * math.pi
-            r = int(math.sin(i)*127) + 128
-            g = int(math.sin(i+g_offset)*127) + 128
-            b = int(math.sin(i+b_offset)*127) + 128
+            r = int(math.sin(i) * 127) + 128
+            g = int(math.sin(i + g_offset) * 127) + 128
+            b = int(math.sin(i + b_offset) * 127) + 128
             yield (r, g, b)
             i += rate
-    
+
     def get_state() -> tuple:
         return tuple(state)
 
@@ -810,13 +839,16 @@ def pygame_display(
                 pygame.draw.rect(
                     maze_surface,
                     color[maze[x, y]],
-                    [x*tile_size, y*tile_size, tile_size, tile_size]
+                    [x * tile_size, y * tile_size, tile_size, tile_size],
                 )
-    
+
     def _draw_path(lines_per_color=10):
         pad = tile_size / 2
-        pad -= pad % 2 # fixes alignment for even/odd pixel padding
-        points = tuple((x*tile_size+pad, y*tile_size+pad) for x, y, in iter(lambda p=iter(path): tuple(next(p)), (0, 0)))
+        pad -= pad % 2  # fixes alignment for even/odd pixel padding
+        points = tuple(
+            (x * tile_size + pad, y * tile_size + pad)
+            for x, y, in iter(lambda p=iter(path): tuple(next(p)), (0, 0))
+        )
         path_surface.fill((0, 0, 0, 0))
         color_gen = rotate_color(0.02)
         # current_color = next(color_gen)
@@ -825,29 +857,35 @@ def pygame_display(
             return
 
         n_colors = n_points // lines_per_color
-        
+
         for c in range(n_colors):
             i = c * lines_per_color
             pygame.draw.lines(
-                path_surface, next(color_gen), False, points[i:i+lines_per_color+1], tile_size)
+                path_surface,
+                next(color_gen),
+                False,
+                points[i : i + lines_per_color + 1],
+                tile_size,
+            )
 
         if n_points % lines_per_color > 1:
             i = n_colors * lines_per_color
-            pygame.draw.lines(path_surface, next(color_gen), False, points[i:], tile_size)
+            pygame.draw.lines(
+                path_surface, next(color_gen), False, points[i:], tile_size
+            )
 
     def _draw_info():
         info = get_state()
         current_fps = clock.get_fps()
-        fps_font = pygame.font.SysFont('times new roman', 16)
+        fps_font = pygame.font.SysFont("times new roman", 16)
         f_surf = fps_font.render(
-            f'FPS: {current_fps:.>6.1f} steps/sec: {info[2]:.>9,d} steps: {info[1]:,}',
+            f"FPS: {current_fps:.>6.1f} steps/sec: {info[2]:.>9,d} steps: {info[1]:,}",
             True,
             (200, 200, 200),
-            (0, 0, 0)
+            (0, 0, 0),
         )
         info_surface.fill((0, 0, 0))
         info_surface.blit(f_surf, (0, 0))
-        
 
     def _handle_events():
         for event in pygame.event.get():
@@ -870,16 +908,16 @@ def pygame_display(
 
         screen.blit(maze_surface, (pad_x, pad_y))
         screen.blit(path_surface, (pad_x, pad_y))
-        screen.blit(info_surface, (0, window_size[1]-status_bar_size[1]))
+        screen.blit(info_surface, (0, window_size[1] - status_bar_size[1]))
 
         clock.tick(fps)
         pygame.display.flip()
 
-    pygame.quit()            
+    pygame.quit()
 
 
 if __name__ == "__main__":
-    
+
     while True:
 
         test_maze = Maze(10, 10)
@@ -888,18 +926,19 @@ if __name__ == "__main__":
         time.sleep(2)
 
         guy = PathFinder(test_maze)
-        print('\n\ncreating nodes...')
+        print("\n\ncreating nodes...")
         guy.create_nodes()
         guy.display_nodes()
-        
+
         time.sleep(2)
 
-        print('\n\nFinding path...')
-        guy.solve(progress_style='path', interval_type='time', interval=1)
+        print("\n\nFinding path...")
+        guy.solve(progress_style="path", interval_type="time", interval=1)
         guy.show_path()
-        
-        print(f'[results] Steps: {guy._data["step_count"]}',
-            f'Elapse Time: {guy._data["solve_time"]}'
+
+        print(
+            f'[results] Steps: {guy._data["step_count"]}',
+            f'Elapse Time: {guy._data["solve_time"]}',
         )
 
         time.sleep(5)
