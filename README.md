@@ -9,5 +9,4 @@ dependencies:
 
 NumPy https://numpy.org/
 
-Run maze.py for a demo
-save test_template.py as test.py and play around with it!
+Eventually I want to come back to this and rewrite it in a more organized way...
